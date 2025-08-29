@@ -1,0 +1,166 @@
+CREATE CATALOG nessie WITH (
+  'type' = 'iceberg',
+  'catalog-impl' = 'org.apache.iceberg.nessie.NessieCatalog',
+  'uri' = 'http://nessie:19120/api/v1',
+  'ref' = 'main',
+  'warehouse' = 's3://telematics-datalake/warehouse',
+  'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO',
+  's3.endpoint' = 'http://minio:9000',
+  's3.access-key-id' = 'minio',
+  's3.secret-access-key' = 'minio123456',
+  's3.path-style-access' = 'true',
+  's3.region' = 'us-east-1'
+);
+
+SET 'table.local-time-zone' = 'America/Mexico_City';
+
+USE CATALOG nessie;
+CREATE DATABASE IF NOT EXISTS telematics;
+USE telematics;
+
+CREATE TABLE IF NOT EXISTS telematics.gps_reports (
+  report_type              STRING,
+  tenant                   STRING,
+  provider                 STRING,
+  `model`                  STRING,
+  firmware                 STRING,
+  device_id                STRING,
+  alert_type               STRING,
+  latitude                 DOUBLE,
+  longitude                DOUBLE,
+  gps_fixed                BOOLEAN,
+  gps_epoch                TIMESTAMP(3) WITH LOCAL TIME ZONE,
+  satellites               BIGINT,
+  speed_kmh                DOUBLE,
+  heading                  STRING,
+  odometer_meters          BIGINT,
+  engine_on                BOOLEAN,
+  vehicle_battery_voltage  DOUBLE,
+  backup_battery_voltage   DOUBLE,
+  received_epoch           TIMESTAMP(3) WITH LOCAL TIME ZONE,
+  decoded_epoch            TIMESTAMP(3) WITH LOCAL TIME ZONE,
+  correlation_id           STRING,
+  device_id_bucket         INT,
+  received_day             DATE,
+  received_hour            INT,
+  gps_day                  DATE
+)
+PARTITIONED BY (
+  device_id_bucket,
+  received_day,
+  received_hour,
+  gps_day
+)
+WITH (
+  'format-version' = '2',
+  'write.format.default' = 'parquet',
+  'parquet.compression' = 'zstd',
+  'write.distribution-mode' = 'hash',
+  'write.target-file-size-bytes' = '134217728',
+  'write.metadata.delete-after-commit.enabled' = 'true',
+  'commit.retry.num-retries' = '8',
+  'commit.retry.min-wait-ms' = '100',
+  'write.metadata.metrics.default' = 'truncate(32)',
+  'write.metadata.metrics.column.device_id' = 'full',
+  'write.metadata.metrics.column.report_type' = 'full',
+  'write.metadata.metrics.column.received_epoch' = 'full',
+  'write.metadata.metrics.column.gps_epoch' = 'full',
+  'write.parquet.bloom-filter-enabled.column.device_id' = 'true',
+  'write.parquet.bloom-filter-enabled.column.report_type' = 'true',
+  'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
+  'write.parquet.bloom-filter-max-bytes' = '1048576'
+);
+
+CREATE TEMPORARY TABLE kafka_gps_reports (
+  report_type              STRING,
+  tenant                   STRING,
+  provider                 STRING,
+  `model`                  STRING,
+  firmware                 STRING,
+  device_id                STRING,
+  alert_type               STRING,
+  latitude                 DOUBLE,
+  longitude                DOUBLE,
+  gps_fixed                BOOLEAN,
+  gps_epoch                STRING,
+  satellites               BIGINT,
+  speed_kmh                STRING,
+  heading                  STRING,
+  odometer_meters          BIGINT,
+  engine_on                BOOLEAN,
+  vehicle_battery_voltage  DOUBLE,
+  backup_battery_voltage   DOUBLE,
+  received_epoch           STRING,
+  decoded_epoch            STRING,
+  correlation_id           STRING
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'iot_decoder.report_decoded',
+  'properties.bootstrap.servers' = 'pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
+  'properties.security.protocol' = 'SASL_SSL',
+  'properties.sasl.mechanism' = 'PLAIN',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="7J47KCESAYYHHD5X" password="upbRPNApf/H08Af/GeL6p4CgA38hD0s9TWQF93w6XGE8Gf6/V0KmgxCgRvhVBOSl";',
+  'properties.ssl.endpoint.identification.algorithm' = 'https',
+  'properties.group.id' = 'flink-telematics-gps-04',
+  'scan.startup.mode'   = 'group-offsets',
+  'properties.auto.offset.reset' = 'earliest',
+  'properties.request.timeout.ms' = '60000',
+  'properties.retry.backoff.ms'   = '500',
+  'properties.client.dns.lookup'  = 'use_all_dns_ips',
+  'format' = 'json',
+  'json.ignore-parse-errors' = 'true'
+);
+
+CREATE TABLE IF NOT EXISTS telematics.latest_gps_by_device (
+  device_id                STRING,
+  report_type              STRING,
+  latitude                 DOUBLE,
+  longitude                DOUBLE,
+  gps_fixed                BOOLEAN,
+  gps_epoch                TIMESTAMP(3) WITH LOCAL TIME ZONE,
+  received_epoch           TIMESTAMP(3) WITH LOCAL TIME ZONE,
+  speed_kmh                DOUBLE,
+  heading                  STRING,
+  odometer_meters          BIGINT,
+  engine_on                BOOLEAN,
+  vehicle_battery_voltage  DOUBLE,
+  backup_battery_voltage   DOUBLE,
+  correlation_id           STRING,
+  PRIMARY KEY (device_id) NOT ENFORCED
+)
+WITH (
+  'format-version' = '2',
+  'write.format.default' = 'parquet',
+  'parquet.compression' = 'zstd',
+  'write.distribution-mode' = 'hash',
+  'write.target-file-size-bytes' = '134217728',
+  'write.upsert.enabled' = 'true',
+  'write.metadata.metrics.column.device_id' = 'full',
+  'write.parquet.bloom-filter-enabled.column.device_id' = 'true',
+  'partitioning' = 'bucket(2048, device_id)'
+);
+
+CREATE TABLE IF NOT EXISTS telematics.risk_score_daily (
+  device_id        STRING,
+  score_date       DATE,
+  total_reports    BIGINT,
+  speed_hi_reports BIGINT,
+  night_reports    BIGINT,
+  rs               DOUBLE,
+  rn               DOUBLE,
+  fs               DOUBLE,
+  fn               DOUBLE,
+  fint             DOUBLE,
+  risk_raw         DOUBLE,
+  score            DOUBLE,
+  level            STRING,
+  last_update      TIMESTAMP(3) WITH LOCAL TIME ZONE,
+  PRIMARY KEY (device_id, score_date) NOT ENFORCED
+)
+WITH (
+  'format-version' = '2',
+  'write.format.default' = 'parquet',
+  'parquet.compression' = 'zstd',
+  'write.upsert.enabled' = 'true',
+  'partitioning' = 'score_date, bucket(1024, device_id)'
+);

@@ -1,0 +1,298 @@
+# docker-compose.yml
+
+x-mounts:
+  lib_iceberg_flink_runtime: &lib_iceberg_flink_runtime
+    type: bind
+    source: ./runtime/lib/iceberg-flink-runtime-1.20-1.9.2.jar
+    target: /opt/flink/lib/iceberg-flink-runtime-1.20-1.9.2.jar
+    read_only: true
+  lib_iceberg_aws_bundle: &lib_iceberg_aws_bundle
+    type: bind
+    source: ./runtime/lib/iceberg-aws-bundle-1.9.2.jar
+    target: /opt/flink/lib/iceberg-aws-bundle-1.9.2.jar
+    read_only: true
+  lib_iceberg_nessie: &lib_iceberg_nessie
+    type: bind
+    source: ./runtime/lib/iceberg-nessie-1.9.2.jar
+    target: /opt/flink/lib/iceberg-nessie-1.9.2.jar
+    read_only: true
+  lib_flink_kafka: &lib_flink_kafka
+    type: bind
+    source: ./runtime/lib/flink-connector-kafka-3.4.0-1.20.jar
+    target: /opt/flink/lib/flink-connector-kafka-3.4.0-1.20.jar
+    read_only: true
+  lib_kafka_clients: &lib_kafka_clients
+    type: bind
+    source: ./runtime/lib/kafka-clients-3.4.0.jar
+    target: /opt/flink/lib/kafka-clients-3.4.0.jar
+    read_only: true
+  lib_flink_s3_hadoop: &lib_flink_s3_hadoop
+    type: bind
+    source: ./runtime/lib/flink-s3-fs-hadoop-1.20.2.jar
+    target: /opt/flink/lib/flink-s3-fs-hadoop-1.20.2.jar
+    read_only: true
+  lib_flink_hadoop_fs: &lib_flink_hadoop_fs
+    type: bind
+    source: ./runtime/lib/flink-hadoop-fs-1.20.2.jar
+    target: /opt/flink/lib/flink-hadoop-fs-1.20.2.jar
+    read_only: true
+  lib_hadoop_common: &lib_hadoop_common
+    type: bind
+    source: ./runtime/lib/hadoop-common-3.3.6.jar
+    target: /opt/flink/lib/hadoop-common-3.3.6.jar
+    read_only: true
+  lib_hadoop_hdfs_client: &lib_hadoop_hdfs_client
+    type: bind
+    source: ./runtime/lib/hadoop-hdfs-client-3.3.6.jar
+    target: /opt/flink/lib/hadoop-hdfs-client-3.3.6.jar
+    read_only: true
+  lib_hadoop_auth: &lib_hadoop_auth
+    type: bind
+    source: ./runtime/lib/hadoop-auth-3.3.6.jar
+    target: /opt/flink/lib/hadoop-auth-3.3.6.jar
+    read_only: true
+  lib_hadoop_mr_core: &lib_hadoop_mr_core
+    type: bind
+    source: ./runtime/lib/hadoop-mapreduce-client-core-3.3.6.jar
+    target: /opt/flink/lib/hadoop-mapreduce-client-core-3.3.6.jar
+    read_only: true
+  lib_hadoop_mr_common: &lib_hadoop_mr_common
+    type: bind
+    source: ./runtime/lib/hadoop-mapreduce-client-common-3.3.6.jar
+    target: /opt/flink/lib/hadoop-mapreduce-client-common-3.3.6.jar
+    read_only: true
+  lib_hadoop_mr_jobclient: &lib_hadoop_mr_jobclient
+    type: bind
+    source: ./runtime/lib/hadoop-mapreduce-client-jobclient-3.3.6.jar
+    target: /opt/flink/lib/hadoop-mapreduce-client-jobclient-3.3.6.jar
+    read_only: true
+  sql_create: &sql_create
+    type: bind
+    source: ./config/flink/create.sql
+    target: /opt/sql/create.sql
+    read_only: true
+  sql_gps_reports: &sql_gps_reports
+    type: bind
+    source: ./config/flink/gps_reports.sql
+    target: /opt/sql/gps_reports.sql
+    read_only: true
+  sql_latest_gps_by_device: &sql_latest_gps_by_device
+    type: bind
+    source: ./config/flink/latest_gps_by_device.sql
+    target: /opt/sql/latest_gps_by_device.sql
+    read_only: true
+  sql_risk_score_daily: &sql_risk_score_daily
+    type: bind
+    source: ./config/flink/risk_score_daily.sql
+    target: /opt/sql/risk_score_daily.sql
+    read_only: true
+  trino_conf: &trino_conf
+    type: bind
+    source: ./config/trino
+    target: /etc/trino
+    read_only: true
+
+services:
+  minio:
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123456
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Consola web
+    volumes:
+      - minio-data:/data
+
+  mc:
+    image: minio/mc:RELEASE.2025-07-21T05-28-08Z
+    depends_on: [minio]
+    entrypoint: ["/bin/sh","-c"]
+    command: >
+      "
+      sleep 5 &&
+      mc alias set local http://minio:9000 minio minio123456 &&
+      mc mb -p local/telematics-datalake &&
+      mc ls local/telematics-datalake || true
+      "
+
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: nessie
+      POSTGRES_USER: nessie
+      POSTGRES_PASSWORD: nessie
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nessie -d nessie"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  nessie:
+    image: ghcr.io/projectnessie/nessie:0.104.2-java
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "19120:19120"
+    environment:
+      QUARKUS_HTTP_PORT: "19120"
+      NESSIE_VERSION_STORE_TYPE: JDBC
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/nessie
+      QUARKUS_DATASOURCE_USERNAME: nessie
+      QUARKUS_DATASOURCE_PASSWORD: nessie
+      NESSIE_CATALOG_DEFAULT_WAREHOUSE: "warehouse"
+      NESSIE_CATALOG_WAREHOUSES_WAREHOUSE_LOCATION: "s3://telematics-datalake/warehouse"
+      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ENDPOINT: "http://minio:9000"
+      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_PATH_STYLE_ACCESS: "true"
+      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_REGION: "us-east-1"
+      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ACCESS_KEY: "minio"
+      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_SECRET_KEY: "minio123456"
+
+  trino:
+    image: trinodb/trino:476
+    depends_on: [nessie, minio]
+    ports:
+      - "8080:8080"
+    volumes:
+      - *trino_conf
+
+  jobmanager:
+    image: flink:1.20.2-scala_2.12
+    container_name: jobmanager
+    command: jobmanager
+    ports:
+      - "8081:8081"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        # Core
+        jobmanager.rpc.address: jobmanager
+        parallelism.default: 4
+
+        # Checkpointing / Exactly-once
+        execution.checkpointing.interval: 30 s
+        execution.checkpointing.mode: EXACTLY_ONCE
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        execution.checkpointing.max-concurrent-checkpoints: 1
+        execution.checkpointing.tolerable-failed-checkpoints: 3
+
+        # Persistir checkpoints/savepoints en MinIO (muy importante)
+        state.checkpoints.dir: s3://telematics-datalake/flink/checkpoints
+        state.savepoints.dir:  s3://telematics-datalake/flink/savepoints
+
+        # Reinicios
+        restart-strategy: fixed-delay
+        restart-strategy.fixed-delay.attempts: 10
+        restart-strategy.fixed-delay.delay: 5 s
+
+        # S3 / MinIO
+        s3.endpoint: http://minio:9000
+        s3.path-style-access: true
+        s3.access-key: minio
+        s3.secret-key: minio123456
+        s3.ssl.enabled: false
+        fs.default-scheme: s3://telematics-datalake
+
+        # Memoria (ajusta si tu host lo permite)
+        jobmanager.memory.process.size: 1024m
+
+        # En taskmanager.environment.FLINK_PROPERTIES añade:
+        taskmanager.numberOfTaskSlots: 16
+        taskmanager.memory.process.size: 4096m
+        taskmanager.memory.managed.size: 1024m
+        taskmanager.memory.network.min: 256m
+        taskmanager.memory.network.max: 512m
+      - TZ=America/Mexico_City
+      - AWS_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123456
+      - AWS_EC2_METADATA_DISABLED=true
+      - AWS_JAVA_V1_DISABLE_DEPRECATION_ANNOUNCEMENT=true
+    volumes:
+      - *lib_iceberg_flink_runtime
+      - *lib_iceberg_aws_bundle
+      - *lib_iceberg_nessie
+      - *lib_flink_kafka
+      - *lib_kafka_clients
+      - *lib_flink_s3_hadoop
+      - *lib_flink_hadoop_fs
+      - *lib_hadoop_common
+      - *lib_hadoop_hdfs_client
+      - *lib_hadoop_auth
+      - *lib_hadoop_mr_core
+      - *lib_hadoop_mr_common
+      - *lib_hadoop_mr_jobclient
+      - *sql_create
+      - *sql_gps_reports
+      - *sql_latest_gps_by_device
+      - *sql_risk_score_daily
+    depends_on: [nessie, minio]
+
+  taskmanager:
+    image: flink:1.20.2-scala_2.12
+    container_name: taskmanager
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        # Core
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 16
+        taskmanager.memory.process.size: 4096m
+        taskmanager.memory.managed.size: 1024m
+        taskmanager.memory.network.min: 256m
+        taskmanager.memory.network.max: 512m
+        # S3 / MinIO (para FS Hadoop)
+        s3.endpoint: http://minio:9000
+        s3.path-style-access: true
+        s3.access-key: minio
+        s3.secret-key: minio123456
+        s3.ssl.enabled: false
+        # Evita HDFS por defecto
+        fs.default-scheme: s3://telematics-datalake
+      - TZ=America/Mexico_City
+      - AWS_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123456
+      - AWS_EC2_METADATA_DISABLED=true
+      - AWS_JAVA_V1_DISABLE_DEPRECATION_ANNOUNCEMENT=true
+    volumes:
+      - *lib_iceberg_flink_runtime
+      - *lib_iceberg_aws_bundle
+      - *lib_iceberg_nessie
+      - *lib_flink_kafka
+      - *lib_kafka_clients
+      - *lib_flink_s3_hadoop
+      - *lib_flink_hadoop_fs
+      - *lib_hadoop_common
+      - *lib_hadoop_hdfs_client
+      - *lib_hadoop_auth
+      - *lib_hadoop_mr_core
+      - *lib_hadoop_mr_common
+      - *lib_hadoop_mr_jobclient
+    depends_on: [jobmanager]
+
+  telematics_api:
+    build: ./services/telematics_api
+    container_name: telematics_api
+    depends_on: [trino]
+    environment:
+      - TRINO_HOST=trino
+      - TRINO_PORT=8080
+      - TRINO_USER=api
+      - TRINO_CATALOG=nessie
+      - TRINO_SCHEMA=telematics
+      - TIME_ZONE=America/Mexico_City
+      - API_TOKENS=token1,token2,token3
+    ports:
+      - "9009:9009"
+
+volumes:
+  minio-data:
+  pg-data:
