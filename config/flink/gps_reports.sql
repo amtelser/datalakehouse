@@ -1,4 +1,10 @@
 SET 'table.local-time-zone' = 'America/Mexico_City';
+SET 'parallelism.default' = '16';
+SET 'table.exec.resource.default-parallelism' = '1';
+SET 'table.exec.sink.parallelism' = '16';
+SET 'restart-strategy' = 'fixed-delay';
+SET 'restart-strategy.fixed-delay.attempts' = '10';
+SET 'restart-strategy.fixed-delay.delay' = '5 s';
 
 USE CATALOG nessie;
 USE telematics;

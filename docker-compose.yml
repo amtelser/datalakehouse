@@ -66,6 +66,16 @@ x-mounts:
     source: ./runtime/lib/hadoop-mapreduce-client-jobclient-3.3.6.jar
     target: /opt/flink/lib/hadoop-mapreduce-client-jobclient-3.3.6.jar
     read_only: true
+  lib_postgres: &lib_postgres
+    type: bind
+    source: ./runtime/lib/postgresql-42.7.3.jar
+    target: /opt/flink/lib/postgresql-42.7.3.jar
+    read_only: true
+  lib_flink_sql_jdbc: &lib_flink_sql_jdbc
+    type: bind
+    source: ./runtime/lib/flink-connector-jdbc-3.3.0-1.20.jar
+    target: /opt/flink/lib/flink-connector-jdbc-3.3.0-1.20.jar
+    read_only: true
   sql_create: &sql_create
     type: bind
     source: ./config/flink/create.sql
@@ -197,15 +207,13 @@ services:
         s3.ssl.enabled: false
         fs.default-scheme: s3://telematics-datalake
 
-        # Memoria (ajusta si tu host lo permite)
-        jobmanager.memory.process.size: 1024m
-
-        # En taskmanager.environment.FLINK_PROPERTIES añade:
-        taskmanager.numberOfTaskSlots: 16
-        taskmanager.memory.process.size: 4096m
-        taskmanager.memory.managed.size: 1024m
-        taskmanager.memory.network.min: 256m
-        taskmanager.memory.network.max: 512m
+        # Memoria
+        jobmanager.memory.process.size: 6144m
+        jobmanager.memory.jvm-metaspace.size: 1024m
+        jobmanager.memory.jvm-overhead.fraction: 0.10
+        jobmanager.memory.heap.size: 2048m
+        jobmanager.memory.off-heap.size: 2048m
+        jobmanager.memory.managed.size: 1024m
       - TZ=America/Mexico_City
       - AWS_REGION=us-east-1
       - AWS_DEFAULT_REGION=us-east-1
@@ -227,6 +235,8 @@ services:
       - *lib_hadoop_mr_core
       - *lib_hadoop_mr_common
       - *lib_hadoop_mr_jobclient
+      - *lib_postgres
+      - *lib_flink_sql_jdbc
       - *sql_create
       - *sql_gps_reports
       - *sql_latest_gps_by_device
@@ -242,11 +252,11 @@ services:
         FLINK_PROPERTIES=
         # Core
         jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 16
-        taskmanager.memory.process.size: 4096m
-        taskmanager.memory.managed.size: 1024m
-        taskmanager.memory.network.min: 256m
-        taskmanager.memory.network.max: 512m
+        taskmanager.numberOfTaskSlots: 8
+        taskmanager.memory.process.size: 12288m
+        taskmanager.memory.managed.size: 4096m
+        taskmanager.memory.network.min: 1024m
+        taskmanager.memory.network.max: 2048m
         # S3 / MinIO (para FS Hadoop)
         s3.endpoint: http://minio:9000
         s3.path-style-access: true
@@ -276,6 +286,8 @@ services:
       - *lib_hadoop_mr_core
       - *lib_hadoop_mr_common
       - *lib_hadoop_mr_jobclient
+      - *lib_postgres
+      - *lib_flink_sql_jdbc
     depends_on: [jobmanager]
 
   telematics_api:
@@ -290,6 +302,7 @@ services:
       - TRINO_SCHEMA=telematics
       - TIME_ZONE=America/Mexico_City
       - API_TOKENS=token1,token2,token3
+      - API_WORKERS=2
     ports:
       - "9009:9009"
 

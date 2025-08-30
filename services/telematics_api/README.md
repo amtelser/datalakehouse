@@ -2,26 +2,27 @@
 
 FastAPI + Trino API para exponer datos de tu Lakehouse (Iceberg/Nessie en Trino).
 
-## Endpoints
-- `GET /health`
-- `GET /latest/by-device?device_ids=ID1,ID2&limit=100`
-- `GET /gps/history?device_id=ID&date_str=YYYY-MM-DD&limit=1000`
-- `GET /risk/score/daily?score_date=YYYY-MM-DD&limit=1000`
+# levantar
+docker compose up -d telematics_api
 
-## Autenticación
-Bearer tokens en la cabecera `Authorization: Bearer <token>`.
-Configura tokens en `API_TOKENS` (separados por coma).
+# health
+curl -s http://localhost:9009/health
 
-## Zona horaria
-La API ejecuta `SET TIME ZONE '<TIME_ZONE>'` en cada conexión y convierte campos
-`TIMESTAMP WITH TIME ZONE` a hora local con `AT TIME ZONE '<TIME_ZONE>'` + `CAST(... AS timestamp)`.
+# gps_reports (últimos 100)
+curl -s -H "Authorization: Bearer token1" \
+  "http://localhost:9009/gps_reports?limit=100"
 
-## Build & Run
-```bash
-docker build -t telematics-api:v4 .
-cp .env.example .env   # edita tokens/host
-docker run -d --name telematics_api -p 9009:9009 --env-file .env telematics-api:v4
-```
+# gps_reports por device + rango
+curl -s -H "Authorization: Bearer token1" \
+  "http://localhost:9009/gps_reports?device_id=1520197325&from_ts=2025-08-31T00:00:00-06:00&to_ts=2025-08-31T23:59:59-06:00"
+
+# latest_gps_by_device
+curl -s -H "Authorization: Bearer token1" \
+  "http://localhost:9009/latest_gps_by_device?device_id=1520197325"
+
+# risk_score_daily por día
+curl -s -H "Authorization: Bearer token1" \
+  "http://localhost:9009/risk_score_daily?day=2025-08-31"
 
 ## Ejemplos
 ```bash

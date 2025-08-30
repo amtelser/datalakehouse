@@ -56,6 +56,7 @@ WITH (
   'write.format.default' = 'parquet',
   'parquet.compression' = 'zstd',
   'write.distribution-mode' = 'hash',
+  -- 'write.order-by' = 'gps_epoch, device_id'
   'write.target-file-size-bytes' = '134217728',
   'write.metadata.delete-after-commit.enabled' = 'true',
   'commit.retry.num-retries' = '8',
@@ -99,14 +100,39 @@ CREATE TEMPORARY TABLE kafka_gps_reports (
   'properties.bootstrap.servers' = 'pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
   'properties.security.protocol' = 'SASL_SSL',
   'properties.sasl.mechanism' = 'PLAIN',
-  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="7J47KCESAYYHHD5X" password="upbRPNApf/H08Af/GeL6p4CgA38hD0s9TWQF93w6XGE8Gf6/V0KmgxCgRvhVBOSl";',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="3AIPWKVF5JUEENXE" password="HpB8QzBAP8HjfIcvYfUnMM8JTNYJPjyA54iHbwUrE5yRfwU60B7dWvRPaDnyPwhs";',
   'properties.ssl.endpoint.identification.algorithm' = 'https',
-  'properties.group.id' = 'flink-telematics-gps-04',
+  'properties.group.id' = 'staging.flink-telematics-gps',
   'scan.startup.mode'   = 'group-offsets',
-  'properties.auto.offset.reset' = 'earliest',
-  'properties.request.timeout.ms' = '60000',
-  'properties.retry.backoff.ms'   = '500',
-  'properties.client.dns.lookup'  = 'use_all_dns_ips',
+  'properties.auto.offset.reset' = 'latest',
+  -- ********* Tuning de consumo *********
+  -- Tamaños de fetch moderados para evitar ráfagas gigantes:
+  'properties.max.partition.fetch.bytes' = '1048576',   -- 1 MiB por partición
+  'properties.fetch.max.bytes' = '5242880',             -- 5 MiB por request total
+  'properties.fetch.min.bytes' = '65536',               -- 64 KiB mínimo antes de devolver
+  'properties.fetch.max.wait.ms' = '200',               -- espera un poquito para batching
+
+  -- Limita registros por poll para evitar picos en operadores downstream:
+  'properties.max.poll.records' = '500',
+
+  -- Mantén la sesión estable y tolerante a pausas (GC, I/O):
+  'properties.session.timeout.ms' = '30000',
+  'properties.heartbeat.interval.ms' = '10000',
+  'properties.max.poll.interval.ms' = '600000',         -- 10 min
+
+  -- Menos rebalances:
+  'properties.partition.assignment.strategy' = 'org.apache.kafka.clients.consumer.CooperativeStickyAssignor',
+
+  -- DNS / timeouts de red
+  'properties.client.dns.lookup' = 'use_all_dns_ips',
+  'properties.request.timeout.ms' = '120000',
+  'properties.retry.backoff.ms'   = '1000',
+  'properties.connections.max.idle.ms' = '300000',
+
+  -- Descubrimiento de nuevas particiones (si aplica)
+  'scan.topic-partition-discovery.interval' = '5 min',
+
+  -- Formato
   'format' = 'json',
   'json.ignore-parse-errors' = 'true'
 );
@@ -163,4 +189,21 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.upsert.enabled' = 'true',
   'partitioning' = 'score_date, bucket(1024, device_id)'
+);
+
+CREATE TEMPORARY TABLE pg_driving_risk_score (
+  device_id         STRING,
+  report_date       DATE,
+  score             DECIMAL(5,2),
+  `level`           STRING,
+  total_reports     INT,
+  overspeed_reports INT,
+  night_reports     INT
+) WITH (
+  'connector' = 'jdbc',
+  'url' = 'jdbc:postgresql://172.26.8.31:5432/telematics_db',
+  'table-name' = 'public.driving_risk_score',
+  'username' = 'iot_test',
+  'password' = '1234567890',
+  'driver' = 'org.postgresql.Driver'
 );
