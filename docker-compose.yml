@@ -91,10 +91,15 @@ x-mounts:
     source: ./config/flink/latest_gps_by_device.sql
     target: /opt/sql/latest_gps_by_device.sql
     read_only: true
-  sql_risk_score_daily: &sql_risk_score_daily
+  sql_risk_score_daily_postgres: &sql_risk_score_daily_postgres
     type: bind
-    source: ./config/flink/risk_score_daily.sql
-    target: /opt/sql/risk_score_daily.sql
+    source: ./config/flink/risk_score_daily_postgres.sql
+    target: /opt/sql/risk_score_daily_postgres.sql
+    read_only: true
+  sql_risk_score_daily_trino: &sql_risk_score_daily_trino
+    type: bind
+    source: ./config/flink/risk_score_daily_trino.sql
+    target: /opt/sql/risk_score_daily_trino.sql
     read_only: true
   trino_conf: &trino_conf
     type: bind
@@ -240,7 +245,8 @@ services:
       - *sql_create
       - *sql_gps_reports
       - *sql_latest_gps_by_device
-      - *sql_risk_score_daily
+      - *sql_risk_score_daily_postgres
+      - *sql_risk_score_daily_trino
     depends_on: [nessie, minio]
 
   taskmanager:

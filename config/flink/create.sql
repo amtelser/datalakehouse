@@ -18,7 +18,7 @@ USE CATALOG nessie;
 CREATE DATABASE IF NOT EXISTS telematics;
 USE telematics;
 
-CREATE TABLE IF NOT EXISTS telematics.gps_reports (
+CREATE TABLE IF NOT EXISTS nessie.telematics.gps_reports (
   report_type              STRING,
   tenant                   STRING,
   provider                 STRING,
@@ -41,33 +41,25 @@ CREATE TABLE IF NOT EXISTS telematics.gps_reports (
   decoded_epoch            TIMESTAMP(3) WITH LOCAL TIME ZONE,
   correlation_id           STRING,
   device_id_bucket         INT,
-  received_day             DATE,
-  received_hour            INT,
-  gps_day                  DATE
+  received_day             DATE
 )
 PARTITIONED BY (
   device_id_bucket,
-  received_day,
-  received_hour,
-  gps_day
+  received_day
 )
 WITH (
   'format-version' = '2',
   'write.format.default' = 'parquet',
-  'parquet.compression' = 'zstd',
-  'write.distribution-mode' = 'hash',
-  -- 'write.order-by' = 'gps_epoch, device_id'
-  'write.target-file-size-bytes' = '134217728',
-  'write.metadata.delete-after-commit.enabled' = 'true',
-  'commit.retry.num-retries' = '8',
-  'commit.retry.min-wait-ms' = '100',
+  'write.parquet.compression-codec' = 'ZSTD',
+  'write.target-file-size-bytes' = '536870912',   -- 512 MB
+  'write.distribution-mode'      = 'none',
   'write.metadata.metrics.default' = 'truncate(32)',
-  'write.metadata.metrics.column.device_id' = 'full',
-  'write.metadata.metrics.column.report_type' = 'full',
-  'write.metadata.metrics.column.received_epoch' = 'full',
-  'write.metadata.metrics.column.gps_epoch' = 'full',
-  'write.parquet.bloom-filter-enabled.column.device_id' = 'true',
-  'write.parquet.bloom-filter-enabled.column.report_type' = 'true',
+  'write.metadata.metrics.column.device_id'       = 'full',
+  'write.metadata.metrics.column.report_type'     = 'full',
+  'write.metadata.metrics.column.received_epoch'  = 'full',
+  'write.metadata.metrics.column.gps_epoch'       = 'full',
+  'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
+  'write.parquet.bloom-filter-enabled.column.report_type'    = 'true',
   'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
   'write.parquet.bloom-filter-max-bytes' = '1048576'
 );
