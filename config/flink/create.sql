@@ -159,28 +159,21 @@ WITH (
 );
 
 CREATE TABLE IF NOT EXISTS telematics.risk_score_daily (
-  device_id        STRING,
-  score_date       DATE,
-  total_reports    BIGINT,
-  speed_hi_reports BIGINT,
-  night_reports    BIGINT,
-  rs               DOUBLE,
-  rn               DOUBLE,
-  fs               DOUBLE,
-  fn               DOUBLE,
-  fint             DOUBLE,
-  risk_raw         DOUBLE,
-  score            DOUBLE,
-  level            STRING,
-  last_update      TIMESTAMP(3) WITH LOCAL TIME ZONE,
-  PRIMARY KEY (device_id, score_date) NOT ENFORCED
+  device_id         STRING,
+  report_date       DATE,
+  score             DOUBLE,
+  level             STRING,
+  total_reports     INT,
+  overspeed_reports INT,
+  night_reports     INT,
+  PRIMARY KEY (device_id, report_date) NOT ENFORCED
 )
 WITH (
   'format-version' = '2',
   'write.format.default' = 'parquet',
   'parquet.compression' = 'zstd',
   'write.upsert.enabled' = 'true',
-  'partitioning' = 'score_date, bucket(1024, device_id)'
+  'partitioning' = 'report_date, bucket(1024, device_id)'
 );
 
 CREATE TEMPORARY TABLE pg_driving_risk_score (
@@ -188,9 +181,9 @@ CREATE TEMPORARY TABLE pg_driving_risk_score (
   report_date       DATE,
   score             DECIMAL(5,2),
   `level`           STRING,
-  total_reports     INT,
-  overspeed_reports INT,
-  night_reports     INT
+  total_reports     BIGINT,
+  overspeed_reports BIGINT,
+  night_reports     BIGINT
 ) WITH (
   'connector' = 'jdbc',
   'url' = 'jdbc:postgresql://172.26.8.31:5432/telematics_db',
