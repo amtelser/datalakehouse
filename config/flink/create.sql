@@ -3,13 +3,13 @@ CREATE CATALOG nessie WITH (
   'catalog-impl' = 'org.apache.iceberg.nessie.NessieCatalog',
   'uri' = 'http://nessie:19120/api/v1',
   'ref' = 'main',
-  'warehouse' = 's3://telematics-datalake/warehouse',
+  'warehouse' = 's3://iothub-telematics-data-stg/warehouse',
   'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO',
-  's3.endpoint' = 'http://minio:9000',
-  's3.access-key-id' = 'minio',
-  's3.secret-access-key' = 'minio123456',
+  's3.endpoint' = 'https://s3.us-west-2.amazonaws.com',
+  's3.access-key-id' = '',
+  's3.secret-access-key' = '',
   's3.path-style-access' = 'true',
-  's3.region' = 'us-east-1'
+  's3.region' = 'us-west-2'
 );
 
 SET 'table.local-time-zone' = 'America/Mexico_City';
@@ -51,17 +51,17 @@ WITH (
   'format-version' = '2',
   'write.format.default' = 'parquet',
   'write.parquet.compression-codec' = 'ZSTD',
-  'write.target-file-size-bytes' = '536870912',   -- 512 MB
-  'write.distribution-mode'      = 'none',
-  'write.metadata.metrics.default' = 'truncate(32)',
-  'write.metadata.metrics.column.device_id'       = 'full',
-  'write.metadata.metrics.column.report_type'     = 'full',
-  'write.metadata.metrics.column.received_epoch'  = 'full',
+  'write.target-file-size-bytes' = '1073741824',
+  'write.distribution-mode'      = 'hash',
+  'write.metadata.metrics.default' = 'truncate(16)',
+  'write.metadata.metrics.column.device_id'       = 'none',
   'write.metadata.metrics.column.gps_epoch'       = 'full',
+  'write.metadata.metrics.column.received_epoch'  = 'full',
+  'write.metadata.metrics.column.report_type'     = 'counts',
   'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
-  'write.parquet.bloom-filter-enabled.column.report_type'    = 'true',
-  'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
-  'write.parquet.bloom-filter-max-bytes' = '1048576'
+  'write.parquet.bloom-filter-enabled.column.report_type'    = 'false',
+  'write.parquet.bloom-filter-enabled.column.correlation_id' = 'false',
+  'write.parquet.bloom-filter-max-bytes'                     = '262144'
 );
 
 CREATE TEMPORARY TABLE kafka_gps_reports (

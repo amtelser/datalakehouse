@@ -10,7 +10,7 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 | Batch diario | Flink SQL | Cálculo de score de riesgo (`risk_score_daily` o export a Postgres) |
 | Catálogo | Nessie | Versionado (branches, commits, snapshots) |
 | Formato / Tablas | Apache Iceberg | Tablas ACID particionadas / evolución de esquema |
-| Almacenamiento | MinIO (S3) | Data Lake (archivos Parquet) |
+| Almacenamiento | S3 | Data Lake (archivos Parquet) |
 | Metastore Nessie | Postgres | Persistencia de metadatos |
 | SQL interactivo | Trino | Exploración / BI |
 | API | FastAPI (telematics_api) | Exposición REST de datos (Trino) |
@@ -26,7 +26,6 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 3. Confirmar UI:
   - Flink: http://localhost:8081/
   - Trino: http://localhost:8080/
-  - MinIO: http://localhost:9001/ (usuario: `minio`, pass: `minio123456` por defecto si no se cambió)
   - Nessie (UI): http://localhost:19120/content/main/telematics/gps_reports
 4. Ejecutar SQL de creación (catálogo + tablas): ver sección siguiente.
 5. Lanzar jobs streaming.
@@ -130,7 +129,7 @@ curl -H "Authorization: Bearer token1" "http://localhost:9009/gps_reports?limit=
 
 ## 🛠️ Mantenimiento / Utilidades
 - `scripts/cleanup_gps_reports.sh`: ejemplo de limpieza / utilitario (ajustar antes de usar).
-- Particiones Iceberg: revisar en MinIO o vía `DESCRIBE TABLE` en Trino.
+- Particiones Iceberg: revisar en S3 o vía `DESCRIBE TABLE` en Trino.
 - Actualización de credenciales: externalizar en variables / `.env` (actualmente algunos valores están embebidos en `create.sql`).
 
 ---
