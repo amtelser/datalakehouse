@@ -3,13 +3,13 @@ CREATE CATALOG nessie WITH (
   'catalog-impl' = 'org.apache.iceberg.nessie.NessieCatalog',
   'uri' = 'http://nessie:19120/api/v1',
   'ref' = 'main',
-  'warehouse' = 's3://iothub-telematics-data-stg/warehouse',
+  'warehouse' = 's3://telematics-datalake/warehouse',
   'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO',
-  's3.endpoint' = 'https://s3.us-west-2.amazonaws.com',
+  's3.endpoint' = 'https://s3.us-west-1.amazonaws.com',
   's3.access-key-id' = '',
   's3.secret-access-key' = '',
   's3.path-style-access' = 'true',
-  's3.region' = 'us-west-2'
+  's3.region' = 'us-west-1'
 );
 
 SET 'table.local-time-zone' = 'America/Mexico_City';
@@ -174,21 +174,4 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.upsert.enabled' = 'true',
   'partitioning' = 'report_date, bucket(1024, device_id)'
-);
-
-CREATE TEMPORARY TABLE pg_driving_risk_score (
-  device_id         STRING,
-  report_date       DATE,
-  score             DECIMAL(5,2),
-  `level`           STRING,
-  total_reports     BIGINT,
-  overspeed_reports BIGINT,
-  night_reports     BIGINT
-) WITH (
-  'connector' = 'jdbc',
-  'url' = 'jdbc:postgresql://172.26.8.31:5432/telematics_db',
-  'table-name' = 'public.driving_risk_score',
-  'username' = 'iot_test',
-  'password' = '1234567890',
-  'driver' = 'org.postgresql.Driver'
 );

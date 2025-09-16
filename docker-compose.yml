@@ -136,10 +136,10 @@ services:
       QUARKUS_DATASOURCE_USERNAME: nessie
       QUARKUS_DATASOURCE_PASSWORD: nessie
       NESSIE_CATALOG_DEFAULT_WAREHOUSE: "warehouse"
-      NESSIE_CATALOG_WAREHOUSES_WAREHOUSE_LOCATION: "s3://iothub-telematics-data-stg/warehouse"
-      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ENDPOINT: "https://s3.us-west-2.amazonaws.com"
+      NESSIE_CATALOG_WAREHOUSES_WAREHOUSE_LOCATION: "s3://telematics-datalake/warehouse"
+      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ENDPOINT: "https://s3.us-west-1.amazonaws.com"
       NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_PATH_STYLE_ACCESS: "true"
-      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_REGION: "us-west-2"
+      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_REGION: "us-west-1"
       NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ACCESS_KEY: ""
       NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_SECRET_KEY: ""
 
@@ -172,8 +172,8 @@ services:
         execution.checkpointing.tolerable-failed-checkpoints: 3
 
         # Persistir checkpoints/savepoints en s3 (muy importante)
-        state.checkpoints.dir: s3://iothub-telematics-data-stg/flink/checkpoints
-        state.savepoints.dir:  s3://iothub-telematics-data-stg/flink/savepoints
+        state.checkpoints.dir: s3://telematics-datalake/flink/checkpoints
+        state.savepoints.dir:  s3://telematics-datalake/flink/savepoints
 
         # Reinicios
         restart-strategy: fixed-delay
@@ -181,12 +181,12 @@ services:
         restart-strategy.fixed-delay.delay: 5 s
 
         # S3
-        s3.endpoint: https://s3.us-west-2.amazonaws.com
+        s3.endpoint: https://s3.us-west-1.amazonaws.com
         s3.path-style-access: true
         s3.access-key: 
         s3.secret-key: 
         s3.ssl.enabled: false
-        fs.default-scheme: s3://iothub-telematics-data-stg
+        fs.default-scheme: s3://telematics-datalake
 
         # Memoria
         jobmanager.memory.process.size: 6144m
@@ -196,8 +196,8 @@ services:
         jobmanager.memory.off-heap.size: 2048m
         jobmanager.memory.managed.size: 1024m
       - TZ=America/Mexico_City
-      - AWS_REGION=us-west-2
-      - AWS_DEFAULT_REGION=us-west-2
+      - AWS_REGION=us-west-1
+      - AWS_DEFAULT_REGION=us-west-1
       - AWS_ACCESS_KEY_ID=
       - AWS_SECRET_ACCESS_KEY=
       - AWS_EC2_METADATA_DISABLED=true
@@ -240,16 +240,16 @@ services:
         taskmanager.memory.network.min: 1024m
         taskmanager.memory.network.max: 2048m
         # S3 (para FS Hadoop)
-        s3.endpoint: https://s3.us-west-2.amazonaws.com
+        s3.endpoint: https://s3.us-west-1.amazonaws.com
         s3.path-style-access: true
         s3.access-key: 
         s3.secret-key: 
         s3.ssl.enabled: false
         # Evita HDFS por defecto
-        fs.default-scheme: s3://iothub-telematics-data-stg
+        fs.default-scheme: s3://telematics-datalake
       - TZ=America/Mexico_City
-      - AWS_REGION=us-west-2
-      - AWS_DEFAULT_REGION=us-west-2
+      - AWS_REGION=us-west-1
+      - AWS_DEFAULT_REGION=us-west-1
       - AWS_ACCESS_KEY_ID=
       - AWS_SECRET_ACCESS_KEY=
       - AWS_EC2_METADATA_DISABLED=true
