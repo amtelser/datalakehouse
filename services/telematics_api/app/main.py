@@ -204,77 +204,7 @@ def get_gps_reports(
         rows = cur.fetchall()
         return rows_to_objs(cur, rows)
 
-
-# 2) latest_gps_by_device
-@app.get("/latest_gps_by_device", dependencies=[Depends(auth_dependency)])
-def get_latest_gps_by_device(
-    pagination: dict = Depends(pagination),
-    device_id: Optional[str] = Query(None),
-):
-    """
-    Última posición por dispositivo (tabla upsert).
-    Timestamps devueltos en TIME_ZONE.
-    """
-    where = []
-    params: List[Any] = []
-
-    if device_id:
-        where.append("device_id = ?")
-        params.append(device_id)
-
-    where_sql = " WHERE " + " AND ".join(where) if where else ""
-
-    gps_epoch_tz      = f"CAST((gps_epoch      AT TIME ZONE '{TZ_SQL}') AS timestamp)"
-    received_epoch_tz = f"CAST((received_epoch AT TIME ZONE '{TZ_SQL}') AS timestamp)"
-    order_clause      = "ORDER BY device_id"
-
-    if pagination["offset"] == 0:
-        sql = f"""
-        SELECT
-          device_id, report_type, latitude, longitude, gps_fixed,
-          {gps_epoch_tz}      AS gps_epoch,
-          {received_epoch_tz} AS received_epoch,
-          speed_kmh, heading, odometer_meters,
-          engine_on, vehicle_battery_voltage, backup_battery_voltage, correlation_id
-        FROM latest_gps_by_device
-        {where_sql}
-        {order_clause}
-        LIMIT ?
-        """
-        params_q = params + [pagination["limit"]]
-    else:
-        sql = f"""
-        WITH t AS (
-          SELECT
-            device_id, report_type, latitude, longitude, gps_fixed,
-            {gps_epoch_tz}      AS gps_epoch,
-            {received_epoch_tz} AS received_epoch,
-            speed_kmh, heading, odometer_meters,
-            engine_on, vehicle_battery_voltage, backup_battery_voltage, correlation_id,
-            row_number() OVER ({order_clause}) AS rn
-          FROM latest_gps_by_device
-          {where_sql}
-        )
-        SELECT
-          device_id, report_type, latitude, longitude, gps_fixed,
-          gps_epoch, received_epoch,
-          speed_kmh, heading, odometer_meters,
-          engine_on, vehicle_battery_voltage, backup_battery_voltage, correlation_id
-        FROM t
-        WHERE rn > ?
-        ORDER BY rn
-        LIMIT ?
-        """
-        params_q = params + [pagination["offset"], pagination["limit"]]
-
-    with trino_conn() as conn:
-        cur = conn.cursor()
-        cur.execute(sql, params_q)
-        rows = cur.fetchall()
-        return rows_to_objs(cur, rows)
-
-
-# 3) risk_score_daily (sin rs, rn, fs, fn, fint)
+# 2) risk_score_daily
 @app.get("/risk_score_daily", dependencies=[Depends(auth_dependency)])
 def get_risk_score_daily(
     pagination: dict = Depends(pagination),

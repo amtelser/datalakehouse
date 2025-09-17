@@ -6,7 +6,7 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 | Flujo | Componente | Rol |
 |-------|------------|-----|
 | Ingesta | Confluent Kafka | Stream de eventos decodificados |
-| Procesamiento streaming | Flink SQL | Inserción en `gps_reports` y mantenimiento `latest_gps_by_device` |
+| Procesamiento streaming | Flink SQL | Inserción en `gps_reports` |
 | Procesamiento streaming | Flink SQL | Inserción en `raw and dlq` |
 | Batch diario | Flink SQL | Cálculo de score de riesgo (`risk_score_daily`) |
 | Catálogo | Nessie | Versionado (branches, commits, snapshots) |
@@ -38,7 +38,6 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 ## 📂 Archivos SQL (carpeta `config/flink/`)
 - `create.sql`: crea catálogo Nessie, DB `telematics`, tablas Iceberg y fuentes temporales (Kafka / JDBC Postgres).
 - `gps_reports.sql`: job streaming → ingesta Kafka → Iceberg (`gps_reports`).
-- `latest_gps_by_device.sql`: job streaming → tabla upsert con última posición por dispositivo.
 - `telematics_raw_dlq.sql`: job streaming → ingesta Kafka → Iceberg (`raw and dlq`).
 - `risk_score_daily.sql`: job batch → calcula score y escribe en tabla Iceberg `risk_score_daily`.
 - `cleanup_raw_dlq.sql` (si se usa) / scripts auxiliares.
@@ -62,12 +61,7 @@ docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/telematics_raw_dlq.sql"
 ```
 
-### 4. Streaming → Tabla `latest_gps_by_device`
-```bash
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/latest_gps_by_device.sql"
-```
-
-### 5. Batch diario → Score de riesgo (elige destino)
+### 4. Batch diario → Score de riesgo (elige destino)
 Iceberg (tabla `telematics.risk_score_daily`):
 ```bash
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily.sql"
@@ -95,8 +89,6 @@ SHOW TABLES IN nessie.telematics;
 
 SELECT * FROM nessie.telematics.gps_reports ORDER BY received_epoch DESC LIMIT 10;
 
-SELECT * FROM nessie.telematics.latest_gps_by_device LIMIT 20;
-
 -- Ajusta la fecha (columna report_date)
 SELECT *
 FROM nessie.telematics.risk_score_daily
@@ -116,7 +108,6 @@ Endpoints (requieren header `Authorization: Bearer token1` por defecto de ejempl
 - `GET /health`
 - `GET /gps_reports?limit=100`
 - `GET /gps_reports?device_id=...&from_ts=...&to_ts=...`
-- `GET /latest_gps_by_device?device_id=...`
 - `GET /risk_score_daily?day=YYYY-MM-DD`
 
 Ejemplos:
@@ -157,7 +148,6 @@ curl -H "Authorization: Bearer token1" "http://localhost:9009/gps_reports?limit=
 | Tabla vacía en Trino | Job streaming no iniciado | Revisar Jobs en UI Flink / relanzar |
 | Error conector Kafka | Credenciales / offsets | Validar config en `create.sql` y conectividad | 
 | No aparece commit Nessie | Job no escribió / falló | Logs del job en Flink / revisar excepciones |
-| Duplicados en latest | Upsert no activo | Confirmar `write.upsert.enabled` y PK NOT ENFORCED |
 
 ---
 
@@ -168,7 +158,7 @@ docker exec -it jobmanager bash -lc "bin/sql-client.sh -f /opt/sql/create.sql"
 
 # Jobs streaming
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/gps_reports.sql"
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/latest_gps_by_device.sql"
+docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/telematics_raw_dlq.sql"
 
 # Batch riesgo (Iceberg)
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily.sql"
