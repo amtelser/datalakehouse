@@ -86,20 +86,20 @@ x-mounts:
     source: ./config/flink/gps_reports.sql
     target: /opt/sql/gps_reports.sql
     read_only: true
-  sql_latest_gps_by_device: &sql_latest_gps_by_device
+  sql_risk_score_daily: &sql_risk_score_daily
     type: bind
-    source: ./config/flink/latest_gps_by_device.sql
-    target: /opt/sql/latest_gps_by_device.sql
+    source: ./config/flink/risk_score_daily.sql
+    target: /opt/sql/risk_score_daily.sql
     read_only: true
-  sql_risk_score_daily_postgres: &sql_risk_score_daily_postgres
+  sql_telematics_raw_dlq: &sql_telematics_raw_dlq
     type: bind
-    source: ./config/flink/risk_score_daily_postgres.sql
-    target: /opt/sql/risk_score_daily_postgres.sql
+    source: ./config/flink/telematics_raw_dlq.sql
+    target: /opt/sql/telematics_raw_dlq.sql
     read_only: true
-  sql_risk_score_daily_trino: &sql_risk_score_daily_trino
+  sql_cleanup_raw_dlq: &sql_cleanup_raw_dlq
     type: bind
-    source: ./config/flink/risk_score_daily_trino.sql
-    target: /opt/sql/risk_score_daily_trino.sql
+    source: ./config/flink/cleanup_raw_dlq.sql
+    target: /opt/sql/cleanup_raw_dlq.sql
     read_only: true
   trino_conf: &trino_conf
     type: bind
@@ -136,7 +136,7 @@ services:
       QUARKUS_DATASOURCE_USERNAME: nessie
       QUARKUS_DATASOURCE_PASSWORD: nessie
       NESSIE_CATALOG_DEFAULT_WAREHOUSE: "warehouse"
-      NESSIE_CATALOG_WAREHOUSES_WAREHOUSE_LOCATION: "s3://telematics-datalake/warehouse"
+      NESSIE_CATALOG_WAREHOUSES_WAREHOUSE_LOCATION: "s3://iothub-telematics-data-stg/warehouse"
       NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ENDPOINT: "https://s3.us-west-1.amazonaws.com"
       NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_PATH_STYLE_ACCESS: "true"
       NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_REGION: "us-west-1"
@@ -150,6 +150,7 @@ services:
       - "8080:8080"
     volumes:
       - *trino_conf
+      - ./config/flink:/opt/sql:ro
 
   jobmanager:
     image: flink:1.20.2-scala_2.12
@@ -172,8 +173,8 @@ services:
         execution.checkpointing.tolerable-failed-checkpoints: 3
 
         # Persistir checkpoints/savepoints en s3 (muy importante)
-        state.checkpoints.dir: s3://telematics-datalake/flink/checkpoints
-        state.savepoints.dir:  s3://telematics-datalake/flink/savepoints
+        state.checkpoints.dir: s3://iothub-telematics-data-stg/flink/checkpoints
+        state.savepoints.dir:  s3://iothub-telematics-data-stg/flink/savepoints
 
         # Reinicios
         restart-strategy: fixed-delay
@@ -186,7 +187,7 @@ services:
         s3.access-key: 
         s3.secret-key: 
         s3.ssl.enabled: false
-        fs.default-scheme: s3://telematics-datalake
+        fs.default-scheme: s3://iothub-telematics-data-stg
 
         # Memoria
         jobmanager.memory.process.size: 6144m
@@ -220,9 +221,9 @@ services:
       - *lib_flink_sql_jdbc
       - *sql_create
       - *sql_gps_reports
-      - *sql_latest_gps_by_device
-      - *sql_risk_score_daily_postgres
-      - *sql_risk_score_daily_trino
+      - *sql_risk_score_daily
+      - *sql_telematics_raw_dlq
+      - *sql_cleanup_raw_dlq
     depends_on: [nessie]
 
   taskmanager:
@@ -246,7 +247,7 @@ services:
         s3.secret-key: 
         s3.ssl.enabled: false
         # Evita HDFS por defecto
-        fs.default-scheme: s3://telematics-datalake
+        fs.default-scheme: s3://iothub-telematics-data-stg
       - TZ=America/Mexico_City
       - AWS_REGION=us-west-1
       - AWS_DEFAULT_REGION=us-west-1

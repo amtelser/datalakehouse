@@ -163,6 +163,13 @@ docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f
 # Batch riesgo (Iceberg)
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily.sql"
 
+# Batch Cleanup
+docker exec -it datalakehouse-trino-1 bash -lc \
+"trino --server http://localhost:8080 \
+       --catalog nessie \
+       --schema telematics \
+       -f /opt/sql/cleanup_raw_dlq.sql"
+
 # Trino CLI
 docker exec -it trino trino
 ```

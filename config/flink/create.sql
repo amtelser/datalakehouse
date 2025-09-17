@@ -3,7 +3,7 @@ CREATE CATALOG nessie WITH (
   'catalog-impl' = 'org.apache.iceberg.nessie.NessieCatalog',
   'uri' = 'http://nessie:19120/api/v1',
   'ref' = 'main',
-  'warehouse' = 's3://telematics-datalake/warehouse',
+  'warehouse' = 's3://iothub-telematics-data-stg/warehouse',
   'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO',
   's3.endpoint' = 'https://s3.us-west-1.amazonaws.com',
   's3.access-key-id' = '',
@@ -329,7 +329,7 @@ CREATE TEMPORARY TABLE kafka_maxtrack_raw_dlq (
   device_id       STRING,  -- NO se usa
   raw_report      STRING,
   received_epoch  STRING,  -- NO se usa
-  correlation_id  STRING.  -- NO se usa
+  correlation_id  STRING  -- NO se usa
 ) WITH (
   'connector' = 'kafka',
   'topic' = 'maxtrack.iot_decoder.dlq',
