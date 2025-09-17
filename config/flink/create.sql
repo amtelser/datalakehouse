@@ -129,35 +129,6 @@ CREATE TEMPORARY TABLE kafka_gps_reports (
   'json.ignore-parse-errors' = 'true'
 );
 
-CREATE TABLE IF NOT EXISTS telematics.latest_gps_by_device (
-  device_id                STRING,
-  report_type              STRING,
-  latitude                 DOUBLE,
-  longitude                DOUBLE,
-  gps_fixed                BOOLEAN,
-  gps_epoch                TIMESTAMP(3) WITH LOCAL TIME ZONE,
-  received_epoch           TIMESTAMP(3) WITH LOCAL TIME ZONE,
-  speed_kmh                DOUBLE,
-  heading                  STRING,
-  odometer_meters          BIGINT,
-  engine_on                BOOLEAN,
-  vehicle_battery_voltage  DOUBLE,
-  backup_battery_voltage   DOUBLE,
-  correlation_id           STRING,
-  PRIMARY KEY (device_id) NOT ENFORCED
-)
-WITH (
-  'format-version' = '2',
-  'write.format.default' = 'parquet',
-  'parquet.compression' = 'zstd',
-  'write.distribution-mode' = 'hash',
-  'write.target-file-size-bytes' = '134217728',
-  'write.upsert.enabled' = 'true',
-  'write.metadata.metrics.column.device_id' = 'full',
-  'write.parquet.bloom-filter-enabled.column.device_id' = 'true',
-  'partitioning' = 'bucket(2048, device_id)'
-);
-
 -- RISK SCORE DIARIO
 CREATE TABLE IF NOT EXISTS telematics.risk_score_daily (
   device_id         STRING,
