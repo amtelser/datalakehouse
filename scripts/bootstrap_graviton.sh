@@ -7,6 +7,7 @@
 #   config/flink/*.sql
 #   config/trino/* (tu catalog/config)
 #   services/telematics_api/* (Dockerfile + código)
+#   scripts/*.sh
 
 set -euo pipefail
 
