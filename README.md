@@ -7,7 +7,8 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 |-------|------------|-----|
 | Ingesta | Confluent Kafka | Stream de eventos decodificados |
 | Procesamiento streaming | Flink SQL | Inserción en `gps_reports` y mantenimiento `latest_gps_by_device` |
-| Batch diario | Flink SQL | Cálculo de score de riesgo (`risk_score_daily` o export a Postgres) |
+| Procesamiento streaming | Flink SQL | Inserción en `raw and dlq` |
+| Batch diario | Flink SQL | Cálculo de score de riesgo (`risk_score_daily`) |
 | Catálogo | Nessie | Versionado (branches, commits, snapshots) |
 | Formato / Tablas | Apache Iceberg | Tablas ACID particionadas / evolución de esquema |
 | Almacenamiento | S3 | Data Lake (archivos Parquet) |
@@ -38,11 +39,9 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 - `create.sql`: crea catálogo Nessie, DB `telematics`, tablas Iceberg y fuentes temporales (Kafka / JDBC Postgres).
 - `gps_reports.sql`: job streaming → ingesta Kafka → Iceberg (`gps_reports`).
 - `latest_gps_by_device.sql`: job streaming → tabla upsert con última posición por dispositivo.
-- `risk_score_daily_trino.sql`: job batch → calcula score y escribe en tabla Iceberg `risk_score_daily`.
-- `risk_score_daily_postgres.sql`: job batch → calcula score y lo inserta en tabla Postgres vía conector JDBC (`pg_driving_risk_score`).
-- `cleanup_old_data.sql` (si se usa) / scripts auxiliares.
-
-> Nota: El archivo antiguo `risk_score_daily.sql` fue reemplazado por dos variantes explícitas (`_trino` / `_postgres`). Ajusta documentación o pipelines que aún lo refieran.
+- `telematics_raw_dlq.sql`: job streaming → ingesta Kafka → Iceberg (`raw and dlq`).
+- `risk_score_daily.sql`: job batch → calcula score y escribe en tabla Iceberg `risk_score_daily`.
+- `cleanup_raw_dlq.sql` (si se usa) / scripts auxiliares.
 
 ---
 
@@ -58,19 +57,20 @@ docker exec -it jobmanager bash -lc "bin/sql-client.sh -f /opt/sql/create.sql"
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/gps_reports.sql"
 ```
 
-### 3. Streaming → Tabla `latest_gps_by_device`
+### 3. Streaming → Ingesta `raw and dlq`
+```bash
+docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/telematics_raw_dlq.sql"
+```
+
+### 4. Streaming → Tabla `latest_gps_by_device`
 ```bash
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/latest_gps_by_device.sql"
 ```
 
-### 4. Batch diario → Score de riesgo (elige destino)
+### 5. Batch diario → Score de riesgo (elige destino)
 Iceberg (tabla `telematics.risk_score_daily`):
 ```bash
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily_trino.sql"
-```
-Postgres (tabla externa `public.driving_risk_score`):
-```bash
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily_postgres.sql"
+docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily.sql"
 ```
 
 #### Ajustar rango de fechas
@@ -171,10 +171,7 @@ docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/latest_gps_by_device.sql"
 
 # Batch riesgo (Iceberg)
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily_trino.sql"
-
-# Batch riesgo (Postgres)
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily_postgres.sql"
+docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily.sql"
 
 # Trino CLI
 docker exec -it trino trino
