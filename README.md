@@ -36,6 +36,9 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 ---
 
 ## 📂 Archivos SQL (carpeta `config/flink/`)
+Copiar el contenido al servidor: 
+scp -r /Users/ar-0980/Library/CloudStorage/OneDrive-EncontrackS.A.deC.V/Documentos/Encontrack/proyectos/datalakehouse/* ubuntu@172.25.27.244:/opt/iothub-stack/
+sudo systemctl start iothub-stack.service
 - `create.sql`: crea catálogo Nessie, DB `telematics`, tablas Iceberg y fuentes temporales (Kafka / JDBC Postgres).
 - `gps_reports.sql`: job streaming → ingesta Kafka → Iceberg (`gps_reports`).
 - `telematics_raw_dlq.sql`: job streaming → ingesta Kafka → Iceberg (`raw and dlq`).

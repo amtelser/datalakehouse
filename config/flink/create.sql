@@ -5,11 +5,11 @@ CREATE CATALOG nessie WITH (
   'ref' = 'main',
   'warehouse' = 's3://iothub-telematics-data-stg/warehouse',
   'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO',
-  's3.endpoint' = 'https://s3.us-west-1.amazonaws.com',
+  's3.endpoint' = 'https://s3.us-west-2.amazonaws.com',
   's3.access-key-id' = '',
   's3.secret-access-key' = '',
   's3.path-style-access' = 'true',
-  's3.region' = 'us-west-1'
+  's3.region' = 'us-west-2'
 );
 
 SET 'table.local-time-zone' = 'America/Mexico_City';
@@ -92,9 +92,9 @@ CREATE TEMPORARY TABLE kafka_gps_reports (
   'properties.bootstrap.servers' = 'pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
   'properties.security.protocol' = 'SASL_SSL',
   'properties.sasl.mechanism' = 'PLAIN',
-  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="3AIPWKVF5JUEENXE" password="HpB8QzBAP8HjfIcvYfUnMM8JTNYJPjyA54iHbwUrE5yRfwU60B7dWvRPaDnyPwhs";',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="" password="";',
   'properties.ssl.endpoint.identification.algorithm' = 'https',
-  'properties.group.id' = 'production.datalake-telematics-gps',
+  'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode'   = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
   -- ********* Tuning de consumo *********
@@ -103,27 +103,21 @@ CREATE TEMPORARY TABLE kafka_gps_reports (
   'properties.fetch.max.bytes' = '5242880',             -- 5 MiB por request total
   'properties.fetch.min.bytes' = '65536',               -- 64 KiB mínimo antes de devolver
   'properties.fetch.max.wait.ms' = '200',               -- espera un poquito para batching
-
   -- Limita registros por poll para evitar picos en operadores downstream:
   'properties.max.poll.records' = '500',
-
   -- Mantén la sesión estable y tolerante a pausas (GC, I/O):
   'properties.session.timeout.ms' = '30000',
   'properties.heartbeat.interval.ms' = '10000',
   'properties.max.poll.interval.ms' = '600000',         -- 10 min
-
   -- Menos rebalances:
   'properties.partition.assignment.strategy' = 'org.apache.kafka.clients.consumer.CooperativeStickyAssignor',
-
   -- DNS / timeouts de red
   'properties.client.dns.lookup' = 'use_all_dns_ips',
   'properties.request.timeout.ms' = '120000',
   'properties.retry.backoff.ms'   = '1000',
   'properties.connections.max.idle.ms' = '300000',
-
   -- Descubrimiento de nuevas particiones (si aplica)
   'scan.topic-partition-discovery.interval' = '5 min',
-
   -- Formato
   'format' = 'json',
   'json.ignore-parse-errors' = 'true'
@@ -165,7 +159,12 @@ WITH (
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
   -- Métricas mínimas (reduce metadatos)
-  'write.metadata.metrics.default' = 'none'
+  'write.metadata.metrics.default' = 'none',
+  'write.metadata.metrics.column.device_id'      = 'truncate(16)',
+  'write.metadata.metrics.column.correlation_id' = 'truncate(16)',
+  'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
+  'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
+  'write.parquet.bloom-filter-max-bytes'                     = '262144'
 );
 
 CREATE TEMPORARY TABLE kafka_maxtrack_raw (
@@ -179,9 +178,9 @@ CREATE TEMPORARY TABLE kafka_maxtrack_raw (
   'properties.bootstrap.servers' = 'pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
   'properties.security.protocol' = 'SASL_SSL',
   'properties.sasl.mechanism' = 'PLAIN',
-  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="3AIPWKVF5JUEENXE" password="HpB8QzBAP8HjfIcvYfUnMM8JTNYJPjyA54iHbwUrE5yRfwU60B7dWvRPaDnyPwhs";',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="" password="";',
   'properties.ssl.endpoint.identification.algorithm' = 'https',
-  'properties.group.id' = 'production.datalake-telematics-maxtrack-raw',
+  'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
   -- Tuning liviano
@@ -218,7 +217,12 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  'write.metadata.metrics.default' = 'none'
+  'write.metadata.metrics.default' = 'none',
+  'write.metadata.metrics.column.device_id'      = 'truncate(16)',
+  'write.metadata.metrics.column.correlation_id' = 'truncate(16)',
+  'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
+  'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
+  'write.parquet.bloom-filter-max-bytes'                     = '262144'
 );
 
 CREATE TEMPORARY TABLE kafka_queclink_raw (
@@ -232,9 +236,9 @@ CREATE TEMPORARY TABLE kafka_queclink_raw (
   'properties.bootstrap.servers' = 'pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
   'properties.security.protocol' = 'SASL_SSL',
   'properties.sasl.mechanism' = 'PLAIN',
-  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="3AIPWKVF5JUEENXE" password="HpB8QzBAP8HjfIcvYfUnMM8JTNYJPjyA54iHbwUrE5yRfwU60B7dWvRPaDnyPwhs";',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="" password="";',
   'properties.ssl.endpoint.identification.algorithm' = 'https',
-  'properties.group.id' = 'production.datalake-telematics-queclink-raw',
+  'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
   -- Tuning liviano
@@ -271,7 +275,12 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  'write.metadata.metrics.default' = 'none'
+  'write.metadata.metrics.default' = 'none',
+  'write.metadata.metrics.column.device_id'      = 'truncate(16)',
+  'write.metadata.metrics.column.correlation_id' = 'truncate(16)',
+  'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
+  'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
+  'write.parquet.bloom-filter-max-bytes'                     = '262144'
 );
 
 CREATE TEMPORARY TABLE kafka_suntech_raw (
@@ -285,9 +294,9 @@ CREATE TEMPORARY TABLE kafka_suntech_raw (
   'properties.bootstrap.servers' = 'pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
   'properties.security.protocol' = 'SASL_SSL',
   'properties.sasl.mechanism' = 'PLAIN',
-  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="3AIPWKVF5JUEENXE" password="HpB8QzBAP8HjfIcvYfUnMM8JTNYJPjyA54iHbwUrE5yRfwU60B7dWvRPaDnyPwhs";',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="" password="";',
   'properties.ssl.endpoint.identification.algorithm' = 'https',
-  'properties.group.id' = 'production.datalake-telematics-suntech-raw',
+  'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
   -- Tuning liviano
@@ -322,7 +331,9 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  'write.metadata.metrics.default' = 'none'
+  'write.metadata.metrics.default' = 'none',
+  'write.metadata.metrics.column.created_at' = 'full',
+  'write.order-by' = 'created_at'
 );
 
 CREATE TEMPORARY TABLE kafka_maxtrack_raw_dlq (
@@ -336,9 +347,9 @@ CREATE TEMPORARY TABLE kafka_maxtrack_raw_dlq (
   'properties.bootstrap.servers' = 'pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
   'properties.security.protocol' = 'SASL_SSL',
   'properties.sasl.mechanism' = 'PLAIN',
-  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="3AIPWKVF5JUEENXE" password="HpB8QzBAP8HjfIcvYfUnMM8JTNYJPjyA54iHbwUrE5yRfwU60B7dWvRPaDnyPwhs";',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="" password="";',
   'properties.ssl.endpoint.identification.algorithm' = 'https',
-  'properties.group.id' = 'production.datalake-telematics-maxtrack-raw-dlq',
+  'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
   -- Tuning liviano
@@ -373,7 +384,9 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  'write.metadata.metrics.default' = 'none'
+  'write.metadata.metrics.default' = 'none',
+  'write.metadata.metrics.column.created_at' = 'full',
+  'write.order-by' = 'created_at'
 );
 
 CREATE TEMPORARY TABLE kafka_queclink_raw_dlq (
@@ -387,9 +400,9 @@ CREATE TEMPORARY TABLE kafka_queclink_raw_dlq (
   'properties.bootstrap.servers' = 'pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
   'properties.security.protocol' = 'SASL_SSL',
   'properties.sasl.mechanism' = 'PLAIN',
-  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="3AIPWKVF5JUEENXE" password="HpB8QzBAP8HjfIcvYfUnMM8JTNYJPjyA54iHbwUrE5yRfwU60B7dWvRPaDnyPwhs";',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="" password="";',
   'properties.ssl.endpoint.identification.algorithm' = 'https',
-  'properties.group.id' = 'production.datalake-telematics-queclink-raw-dlq',
+  'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
   -- Tuning liviano
@@ -424,7 +437,9 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  'write.metadata.metrics.default' = 'none'
+  'write.metadata.metrics.default' = 'none',
+  'write.metadata.metrics.column.created_at' = 'full',
+  'write.order-by' = 'created_at'
 );
 
 CREATE TEMPORARY TABLE kafka_suntech_raw_dlq (
@@ -438,9 +453,9 @@ CREATE TEMPORARY TABLE kafka_suntech_raw_dlq (
   'properties.bootstrap.servers' = 'pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
   'properties.security.protocol' = 'SASL_SSL',
   'properties.sasl.mechanism' = 'PLAIN',
-  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="3AIPWKVF5JUEENXE" password="HpB8QzBAP8HjfIcvYfUnMM8JTNYJPjyA54iHbwUrE5yRfwU60B7dWvRPaDnyPwhs";',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username="" password="";',
   'properties.ssl.endpoint.identification.algorithm' = 'https',
-  'properties.group.id' = 'production.datalake-telematics-suntech-raw-dlq',
+  'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
   -- Tuning liviano

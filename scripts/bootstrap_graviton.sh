@@ -1,50 +1,37 @@
 #!/usr/bin/env bash
-# bootstrap_graviton.sh
+# bootstrap_graviton.sh v2 anti-hang
 # Prepara una instancia Graviton (ARM64) para correr tu stack con Docker Compose.
-# /opt/iothub-stack/
-#   docker-compose.yml
-#   runtime/lib/*.jar
-#   config/flink/*.sql
-#   config/trino/* (tu catalog/config)
-#   services/telematics_api/* (Dockerfile + código)
-#   scripts/*.sh
-
 set -euo pipefail
 
 STACK_DIR="/opt/iothub-stack"
 UNIT_NAME="iothub-stack"
 DOCKER_SOCK_GROUP="docker"
+COMPOSE_VER="v2.39.3"
 
 echo "==> [0/10] Detectando arquitectura..."
 ARCH="$(uname -m)"
 if [[ "$ARCH" != "aarch64" && "$ARCH" != "arm64" ]]; then
-  echo "ADVERTENCIA: arquitectura $ARCH (no ARM64). Este script está optimizado para Graviton (aarch64)."
-  echo "Continuando de todos modos..."
+  echo "ADVERTENCIA: arquitectura $ARCH (no ARM64). Optimizado para Graviton."
 fi
 
 echo "==> [1/10] Actualizando sistema e instalando Docker + utilidades..."
 if [ -f /etc/os-release ]; then . /etc/os-release; fi
-
 if [[ "${ID:-}" == "amzn" ]]; then
   # Amazon Linux 2023
   sudo dnf -y update
   sudo dnf -y install docker git curl unzip jq logrotate
-  # Instalar Docker Compose plugin (multi-arch)
   sudo mkdir -p /usr/local/lib/docker/cli-plugins
-  COMPOSE_VER="v2.39.3"
   sudo curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VER}/docker-compose-linux-$(uname -m)" \
     -o /usr/local/lib/docker/cli-plugins/docker-compose
   sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 else
-  # Ubuntu/Debian fallback
+  # Ubuntu/Debian
   sudo apt-get update -y
   sudo apt-get install -y ca-certificates curl gnupg lsb-release git jq logrotate
   sudo install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
-    | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+    | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
   sudo apt-get update -y
   sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 fi
@@ -52,15 +39,14 @@ fi
 echo "==> [2/10] Habilitando y arrancando Docker..."
 sudo systemctl enable docker
 sudo systemctl start docker
-
 if ! id -nG "$USER" | grep -qw "$DOCKER_SOCK_GROUP"; then
   sudo usermod -aG docker "$USER" || true
-  echo ">> Nota: cierra y vuelve a abrir sesión para usar 'docker' sin sudo."
+  echo ">> Nota: re-login para usar 'docker' sin sudo."
 fi
 
-echo "==> [3/10] Configurando rotación nativa de logs de Docker..."
+echo "==> [3/10] Configurando rotación nativa de logs de Docker (robusto)..."
 sudo mkdir -p /etc/docker
-cat | sudo tee /etc/docker/daemon.json >/dev/null <<'JSON'
+sudo tee /etc/docker/daemon.json >/dev/null <<'JSON'
 {
   "log-driver": "json-file",
   "log-opts": {
@@ -69,10 +55,33 @@ cat | sudo tee /etc/docker/daemon.json >/dev/null <<'JSON'
   }
 }
 JSON
-sudo systemctl restart docker
+sudo chown root:root /etc/docker/daemon.json
+sudo chmod 644 /etc/docker/daemon.json
 
-echo "==> [4/10] (Opcional extra) logrotate para archivos de contenedor..."
-cat | sudo tee /etc/logrotate.d/docker-containers >/dev/null <<'EOF'
+# Validar JSON antes de tocar Docker
+if ! sudo jq . /etc/docker/daemon.json >/dev/null 2>&1; then
+  echo "ERROR: /etc/docker/daemon.json inválido."; exit 1
+fi
+
+# Reload + restart no-bloqueante
+sudo systemctl daemon-reload || true
+sudo systemctl reload docker || true
+sudo systemctl restart docker --no-block || true
+sleep 3
+
+if ! systemctl is-active --quiet docker; then
+  echo "Docker no activo tras restart no-bloqueante; mostrando logs:"
+  sudo journalctl -u docker -n 80 --no-pager || true
+  echo "Reintentando restart síncrono..."
+  sudo systemctl restart docker || true
+  sleep 2
+  systemctl is-active --quiet docker || { echo "Docker sigue inactivo. Abortando."; exit 1; }
+fi
+echo "Docker activo 👍"
+
+echo "==> [4/10] (Opcional) logrotate para archivos de contenedor (sin forzar)..."
+# Heredoc robusto (sin cat | tee) y sin -f que puede tardar si hay logs grandes
+sudo bash -c 'cat > /etc/logrotate.d/docker-containers << "EOF"
 /var/lib/docker/containers/*/*.log {
   rotate 7
   daily
@@ -82,8 +91,11 @@ cat | sudo tee /etc/logrotate.d/docker-containers >/dev/null <<'EOF'
   delaycompress
   copytruncate
 }
-EOF
-sudo logrotate -f /etc/logrotate.d/docker-containers || true
+EOF'
+sudo chown root:root /etc/logrotate.d/docker-containers
+sudo chmod 644 /etc/logrotate.d/docker-containers
+# Validar configuración (debug: no rota nada)
+sudo logrotate -d /etc/logrotate.d/docker-containers || true
 
 echo "==> [5/10] Ajustes de sistema..."
 if ! grep -q "nofile 1048576" /etc/security/limits.conf; then
@@ -100,10 +112,7 @@ if ! grep -q "vm.max_map_count" /etc/sysctl.conf; then
 fi
 
 echo "==> [6/10] Verificación del directorio..."
-if [ ! -d "$STACK_DIR" ]; then
-  echo "ERROR: No existe ${STACK_DIR}. Copia tu proyecto allí y vuelve a correr este script."
-  exit 1
-fi
+[ -d "$STACK_DIR" ] || { echo "ERROR: Falta ${STACK_DIR}. Copia tu proyecto allí y vuelve a correr este script."; exit 1; }
 
 echo "==> [7/10] Recuerda: quita claves AWS del compose y usa IAM Role en EC2."
 

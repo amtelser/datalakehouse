@@ -137,9 +137,9 @@ services:
       QUARKUS_DATASOURCE_PASSWORD: nessie
       NESSIE_CATALOG_DEFAULT_WAREHOUSE: "warehouse"
       NESSIE_CATALOG_WAREHOUSES_WAREHOUSE_LOCATION: "s3://iothub-telematics-data-stg/warehouse"
-      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ENDPOINT: "https://s3.us-west-1.amazonaws.com"
+      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ENDPOINT: "https://s3.us-west-2.amazonaws.com"
       NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_PATH_STYLE_ACCESS: "true"
-      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_REGION: "us-west-1"
+      NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_REGION: "us-west-2"
       NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ACCESS_KEY: ""
       NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_SECRET_KEY: ""
 
@@ -163,7 +163,7 @@ services:
         FLINK_PROPERTIES=
         # Core
         jobmanager.rpc.address: jobmanager
-        parallelism.default: 4
+        parallelism.default: 16
 
         # Checkpointing / Exactly-once
         execution.checkpointing.interval: 30 s
@@ -182,7 +182,7 @@ services:
         restart-strategy.fixed-delay.delay: 5 s
 
         # S3
-        s3.endpoint: https://s3.us-west-1.amazonaws.com
+        s3.endpoint: https://s3.us-west-2.amazonaws.com
         s3.path-style-access: true
         s3.access-key: 
         s3.secret-key: 
@@ -197,8 +197,8 @@ services:
         jobmanager.memory.off-heap.size: 2048m
         jobmanager.memory.managed.size: 1024m
       - TZ=America/Mexico_City
-      - AWS_REGION=us-west-1
-      - AWS_DEFAULT_REGION=us-west-1
+      - AWS_REGION=us-west-2
+      - AWS_DEFAULT_REGION=us-west-2
       - AWS_ACCESS_KEY_ID=
       - AWS_SECRET_ACCESS_KEY=
       - AWS_EC2_METADATA_DISABLED=true
@@ -228,20 +228,19 @@ services:
 
   taskmanager:
     image: flink:1.20.2-scala_2.12
-    container_name: taskmanager
     command: taskmanager
     environment:
       - |
         FLINK_PROPERTIES=
         # Core
         jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 8
+        taskmanager.numberOfTaskSlots: 16
         taskmanager.memory.process.size: 12288m
         taskmanager.memory.managed.size: 4096m
         taskmanager.memory.network.min: 1024m
         taskmanager.memory.network.max: 2048m
         # S3 (para FS Hadoop)
-        s3.endpoint: https://s3.us-west-1.amazonaws.com
+        s3.endpoint: https://s3.us-west-2.amazonaws.com
         s3.path-style-access: true
         s3.access-key: 
         s3.secret-key: 
@@ -249,8 +248,8 @@ services:
         # Evita HDFS por defecto
         fs.default-scheme: s3://iothub-telematics-data-stg
       - TZ=America/Mexico_City
-      - AWS_REGION=us-west-1
-      - AWS_DEFAULT_REGION=us-west-1
+      - AWS_REGION=us-west-2
+      - AWS_DEFAULT_REGION=us-west-2
       - AWS_ACCESS_KEY_ID=
       - AWS_SECRET_ACCESS_KEY=
       - AWS_EC2_METADATA_DISABLED=true
