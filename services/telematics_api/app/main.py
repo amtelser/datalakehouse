@@ -3,6 +3,7 @@ from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, Depends, Header, HTTPException, Query
 import trino
+from trino.auth import BasicAuthentication
 
 
 # =========================
@@ -24,11 +25,13 @@ def auth_dependency(authorization: Optional[str] = Header(None)) -> str:
 # =========================
 #  Conexión Trino
 # =========================
-TRINO_HOST    = os.getenv("TRINO_HOST", "trino")
-TRINO_PORT    = int(os.getenv("TRINO_PORT", "8080"))
-TRINO_USER    = os.getenv("TRINO_USER", "api")
-TRINO_CATALOG = os.getenv("TRINO_CATALOG", "nessie")
-TRINO_SCHEMA  = os.getenv("TRINO_SCHEMA", "telematics")
+TRINO_HOST     = os.getenv("TRINO_HOST", "trino")
+TRINO_PORT     = int(os.getenv("TRINO_PORT", "8080"))
+TRINO_USER     = os.getenv("TRINO_USER", "analyst")
+TRINO_PASSWORD = os.getenv("TRINO_PASSWORD", "analyst#2025")
+TRINO_CATALOG  = os.getenv("TRINO_CATALOG", "nessie")
+TRINO_SCHEMA   = os.getenv("TRINO_SCHEMA", "telematics")
+TRINO_VERIFY   = os.getenv("TRINO_VERIFY_SSL", "false").lower() == "true"
 
 def trino_conn():
     return trino.dbapi.connect(
@@ -37,6 +40,9 @@ def trino_conn():
         user=TRINO_USER,
         catalog=TRINO_CATALOG,
         schema=TRINO_SCHEMA,
+        http_scheme="https",
+        auth=BasicAuthentication(TRINO_USER, TRINO_PASSWORD),
+        verify=TRINO_VERIFY,   # False si usas certificado autofirmado
     )
 
 

@@ -1,0 +1,26 @@
+{
+  "catalogs": [
+    { "user": "ANONYMOUS", "catalog": ".*",   "allow": "none" },
+    { "user": "admin",     "catalog": ".*",   "allow": "all"  },
+    { "user": "analyst",   "catalog": "nessie","allow": "read-only" }
+  ],
+  "schemas": [
+    { "user": "admin", "catalog": ".*", "schema": ".*", "owner": true }
+  ],
+  "tables": [
+    {
+      "user": "admin",
+      "catalog": ".*",
+      "schema": ".*",
+      "table": ".*",
+      "privileges": ["SELECT","INSERT","DELETE","UPDATE","OWNERSHIP"]
+    },
+    {
+      "user": "analyst",
+      "catalog": "nessie",
+      "schema": "telematics",
+      "table": ".*",
+      "privileges": ["SELECT"]
+    }
+  ]
+}

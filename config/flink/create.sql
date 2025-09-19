@@ -159,9 +159,9 @@ WITH (
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
   -- Métricas mínimas (reduce metadatos)
-  'write.metadata.metrics.default' = 'none',
-  'write.metadata.metrics.column.device_id'      = 'truncate(16)',
-  'write.metadata.metrics.column.correlation_id' = 'truncate(16)',
+  'write.metadata.metrics.default' = 'truncate(16)',
+  'write.metadata.metrics.column.device_id'      = 'none',
+  'write.metadata.metrics.column.correlation_id' = 'none',
   'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
   'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
   'write.parquet.bloom-filter-max-bytes'                     = '262144'
@@ -217,9 +217,9 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  'write.metadata.metrics.default' = 'none',
-  'write.metadata.metrics.column.device_id'      = 'truncate(16)',
-  'write.metadata.metrics.column.correlation_id' = 'truncate(16)',
+  'write.metadata.metrics.default' = 'truncate(16)',
+  'write.metadata.metrics.column.device_id'      = 'none',
+  'write.metadata.metrics.column.correlation_id' = 'none',
   'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
   'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
   'write.parquet.bloom-filter-max-bytes'                     = '262144'
@@ -275,9 +275,9 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  'write.metadata.metrics.default' = 'none',
-  'write.metadata.metrics.column.device_id'      = 'truncate(16)',
-  'write.metadata.metrics.column.correlation_id' = 'truncate(16)',
+  'write.metadata.metrics.default' = 'truncate(16)',
+  'write.metadata.metrics.column.device_id'      = 'none',
+  'write.metadata.metrics.column.correlation_id' = 'none',
   'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
   'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
   'write.parquet.bloom-filter-max-bytes'                     = '262144'
@@ -331,7 +331,7 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  'write.metadata.metrics.default' = 'none',
+  'write.metadata.metrics.default' = 'truncate(16)',
   'write.metadata.metrics.column.created_at' = 'full',
   'write.order-by' = 'created_at'
 );
@@ -384,7 +384,7 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  'write.metadata.metrics.default' = 'none',
+  'write.metadata.metrics.default' = 'truncate(16)',
   'write.metadata.metrics.column.created_at' = 'full',
   'write.order-by' = 'created_at'
 );
@@ -437,7 +437,7 @@ WITH (
   'parquet.compression' = 'zstd',
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  'write.metadata.metrics.default' = 'none',
+  'write.metadata.metrics.default' = 'truncate(16)',
   'write.metadata.metrics.column.created_at' = 'full',
   'write.order-by' = 'created_at'
 );

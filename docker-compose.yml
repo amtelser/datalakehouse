@@ -150,7 +150,15 @@ services:
       - "8080:8080"
     volumes:
       - *trino_conf
+      - trino-data:/data/trino
       - ./config/flink:/opt/sql:ro
+    secrets:
+      - source: trino_keystore
+        target: trino_keystore.jks
+      - source: trino_passwords
+        target: trino_passwords.db
+      - source: trino_rules
+        target: trino_rules.json
 
   jobmanager:
     image: flink:1.20.2-scala_2.12
@@ -290,3 +298,12 @@ services:
 
 volumes:
   pg-data:
+  trino-data:
+
+secrets:
+  trino_keystore:
+    file: ./config/trino/keystore.jks
+  trino_passwords:
+    file: ./config/trino/password.db
+  trino_rules:
+    file: ./config/trino/rules.json
