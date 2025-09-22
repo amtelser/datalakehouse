@@ -76,30 +76,35 @@ x-mounts:
     source: ./runtime/lib/flink-connector-jdbc-3.3.0-1.20.jar
     target: /opt/flink/lib/flink-connector-jdbc-3.3.0-1.20.jar
     read_only: true
+  sql_cleanup_telematics_raw_dlq: &sql_cleanup_telematics_raw_dlq
+    type: bind
+    source: ./config/flink/cleanup_telematics_raw_dlq.sql
+    target: /opt/sql/cleanup_telematics_raw_dlq.sql
+    read_only: true
+  sql_cleanup_telematics_real_time: &sql_cleanup_telematics_real_time
+    type: bind
+    source: ./config/flink/cleanup_telematics_real_time.sql
+    target: /opt/sql/cleanup_telematics_real_time.sql
+    read_only: true
   sql_create: &sql_create
     type: bind
     source: ./config/flink/create.sql
     target: /opt/sql/create.sql
     read_only: true
-  sql_gps_reports: &sql_gps_reports
+  sql_sink_risk_score_daily: &sql_sink_risk_score_daily
     type: bind
-    source: ./config/flink/gps_reports.sql
-    target: /opt/sql/gps_reports.sql
+    source: ./config/flink/sink_risk_score_daily.sql
+    target: /opt/sql/sink_risk_score_daily.sql
     read_only: true
-  sql_risk_score_daily: &sql_risk_score_daily
+  sql_sink_telematics_real_time: &sql_sink_telematics_real_time
     type: bind
-    source: ./config/flink/risk_score_daily.sql
-    target: /opt/sql/risk_score_daily.sql
+    source: ./config/flink/sink_telematics_real_time.sql
+    target: /opt/sql/sink_telematics_real_time.sql
     read_only: true
-  sql_telematics_raw_dlq: &sql_telematics_raw_dlq
+  sql_sink_telematics_raw_dlq: &sql_sink_telematics_raw_dlq
     type: bind
-    source: ./config/flink/telematics_raw_dlq.sql
-    target: /opt/sql/telematics_raw_dlq.sql
-    read_only: true
-  sql_cleanup_raw_dlq: &sql_cleanup_raw_dlq
-    type: bind
-    source: ./config/flink/cleanup_raw_dlq.sql
-    target: /opt/sql/cleanup_raw_dlq.sql
+    source: ./config/flink/sink_telematics_raw_dlq.sql
+    target: /opt/sql/sink_telematics_raw_dlq.sql
     read_only: true
   trino_conf: &trino_conf
     type: bind
@@ -198,12 +203,12 @@ services:
         fs.default-scheme: s3://iothub-telematics-data-stg
 
         # Memoria
-        jobmanager.memory.process.size: 6144m
-        jobmanager.memory.jvm-metaspace.size: 1024m
+        jobmanager.memory.process.size: 12288m
+        jobmanager.memory.jvm-metaspace.size: 4096m
         jobmanager.memory.jvm-overhead.fraction: 0.10
-        jobmanager.memory.heap.size: 2048m
-        jobmanager.memory.off-heap.size: 2048m
-        jobmanager.memory.managed.size: 1024m
+        #jobmanager.memory.heap.size: 2048m
+        #jobmanager.memory.off-heap.size: 2048m
+        #jobmanager.memory.managed.size: 1024m
       - TZ=America/Mexico_City
       - AWS_REGION=us-west-2
       - AWS_DEFAULT_REGION=us-west-2
@@ -227,11 +232,12 @@ services:
       - *lib_hadoop_mr_jobclient
       - *lib_postgres
       - *lib_flink_sql_jdbc
+      - *sql_cleanup_telematics_raw_dlq
+      - *sql_cleanup_telematics_real_time
       - *sql_create
-      - *sql_gps_reports
-      - *sql_risk_score_daily
-      - *sql_telematics_raw_dlq
-      - *sql_cleanup_raw_dlq
+      - *sql_sink_risk_score_daily
+      - *sql_sink_telematics_real_time
+      - *sql_sink_telematics_raw_dlq
     depends_on: [nessie]
 
   taskmanager:

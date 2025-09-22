@@ -9,17 +9,14 @@ SET 'restart-strategy.fixed-delay.delay' = '5 s';
 USE CATALOG nessie;
 USE telematics;
 
--- DELETE FROM telematics.risk_score_daily
--- WHERE report_date = current_date - INTERVAL '1' day;
-
-INSERT INTO telematics.risk_score_daily
+INSERT INTO nessie.telematics.risk_score_daily
 WITH base AS (
   SELECT
     device_id,
     CAST(CAST(gps_epoch AS TIMESTAMP(3)) AS DATE) AS report_date_local,
     CAST(speed_kmh AS DOUBLE) AS speed_kmh,
     EXTRACT(HOUR FROM CAST(gps_epoch AS TIMESTAMP(3))) AS gps_hour_local
-  FROM telematics.gps_reports
+  FROM telematics.telematics_real_time
   WHERE CAST(CAST(gps_epoch AS TIMESTAMP(3)) AS DATE) = CURRENT_DATE - INTERVAL '1' DAY
 ),
 agg AS (

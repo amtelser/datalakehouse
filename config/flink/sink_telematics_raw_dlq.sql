@@ -22,7 +22,7 @@ SELECT
   correlation_id,
   CURRENT_TIMESTAMP AS created_at,
   CURRENT_DATE      AS created_day
-FROM kafka_maxtrack_raw;
+FROM kafka_telematics_maxtrack_raw;
 
 -- QUECLINK RAW
 INSERT INTO nessie.telematics.telematics_queclink_raw
@@ -32,7 +32,7 @@ SELECT
   correlation_id,
   CURRENT_TIMESTAMP AS created_at,
   CURRENT_DATE      AS created_day
-FROM kafka_queclink_raw;
+FROM kafka_telematics_queclink_raw;
 
 -- SUNTECH RAW
 INSERT INTO nessie.telematics.telematics_suntech_raw
@@ -42,7 +42,7 @@ SELECT
   correlation_id,
   CURRENT_TIMESTAMP AS created_at,
   CURRENT_DATE      AS created_day
-FROM kafka_suntech_raw;
+FROM kafka_telematics_suntech_raw;
 
 -- MAXTRACK DLQ
 INSERT INTO nessie.telematics.telematics_maxtrack_raw_dlq
@@ -50,7 +50,7 @@ SELECT
   raw_report,
   CURRENT_TIMESTAMP AS created_at,
   CURRENT_DATE      AS created_day
-FROM kafka_maxtrack_raw_dlq;
+FROM kafka_telematics_maxtrack_raw_dlq;
 
 -- QUECLINK DLQ
 INSERT INTO nessie.telematics.telematics_queclink_raw_dlq
@@ -58,7 +58,7 @@ SELECT
   raw_report,
   CURRENT_TIMESTAMP AS created_at,
   CURRENT_DATE      AS created_day
-FROM kafka_queclink_raw_dlq;
+FROM kafka_telematics_queclink_raw_dlq;
 
 -- SUNTECH DLQ
 INSERT INTO nessie.telematics.telematics_suntech_raw_dlq
@@ -66,4 +66,4 @@ SELECT
   raw_report,
   CURRENT_TIMESTAMP AS created_at,
   CURRENT_DATE      AS created_day
-FROM kafka_suntech_raw_dlq;
+FROM kafka_telematics_suntech_raw_dlq;

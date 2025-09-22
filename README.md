@@ -6,7 +6,7 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 | Flujo | Componente | Rol |
 |-------|------------|-----|
 | Ingesta | Confluent Kafka | Stream de eventos decodificados |
-| Procesamiento streaming | Flink SQL | Inserción en `gps_reports` |
+| Procesamiento streaming | Flink SQL | Inserción en `telematics_real_time` |
 | Procesamiento streaming | Flink SQL | Inserción en `raw and dlq` |
 | Batch diario | Flink SQL | Cálculo de score de riesgo (`risk_score_daily`) |
 | Catálogo | Nessie | Versionado (branches, commits, snapshots) |
@@ -27,7 +27,7 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 3. Confirmar UI:
   - Flink: http://localhost:8081/
   - Trino: http://localhost:8080/
-  - Nessie (UI): http://localhost:19120/content/main/telematics/gps_reports
+  - Nessie (UI): http://localhost:19120/content/main/telematics/telematics_real_time
 4. Ejecutar SQL de creación (catálogo + tablas): ver sección siguiente.
 5. Lanzar jobs streaming.
 6. (Opcional) Ejecutar job batch de riesgo.
@@ -39,11 +39,12 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 Copiar el contenido al servidor: 
 scp -r /Users/ar-0980/Library/CloudStorage/OneDrive-EncontrackS.A.deC.V/Documentos/Encontrack/proyectos/datalakehouse/* ubuntu@172.25.27.244:/opt/iothub-stack/
 sudo systemctl start iothub-stack.service
+- `cleanup_telematics_raw_dlq.sql` (cleanup_telematics_raw_dlq) / scripts auxiliares.
+- `cleanup_telematics_real_time.sql` (cleanup_telematics_real_time) / scripts auxiliares.
 - `create.sql`: crea catálogo Nessie, DB `telematics`, tablas Iceberg y fuentes temporales (Kafka / JDBC Postgres).
-- `gps_reports.sql`: job streaming → ingesta Kafka → Iceberg (`gps_reports`).
-- `telematics_raw_dlq.sql`: job streaming → ingesta Kafka → Iceberg (`raw and dlq`).
-- `risk_score_daily.sql`: job batch → calcula score y escribe en tabla Iceberg `risk_score_daily`.
-- `cleanup_raw_dlq.sql` (si se usa) / scripts auxiliares.
+- `sink_risk_score_daily.sql`: job batch → calcula score y escribe en tabla Iceberg `sink_risk_score_daily`.
+- `sink_telematics_real_time.sql`: job streaming → ingesta Kafka → Iceberg (`sink_telematics_real_time`).
+- `sink_telematics_raw_dlq.sql`: job streaming → ingesta Kafka → Iceberg (`sink_telematics_raw_dlq`).
 
 ---
 
@@ -54,20 +55,20 @@ sudo systemctl start iothub-stack.service
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -f /opt/sql/create.sql"
 ```
 
-### 2. Streaming → Ingesta `gps_reports`
+### 2. Streaming → Ingesta `telematics_real_time`
 ```bash
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/gps_reports.sql"
+docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/sink_telematics_real_time.sql"
 ```
 
 ### 3. Streaming → Ingesta `raw and dlq`
 ```bash
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/telematics_raw_dlq.sql"
+docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/sink_telematics_raw_dlq.sql"
 ```
 
 ### 4. Batch diario → Score de riesgo (elige destino)
 Iceberg (tabla `telematics.risk_score_daily`):
 ```bash
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily.sql"
+docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/sink_risk_score_daily.sql"
 ```
 
 #### Ajustar rango de fechas
@@ -90,7 +91,7 @@ Ejemplos:
 ```sql
 SHOW TABLES IN nessie.telematics;
 
-SELECT * FROM nessie.telematics.gps_reports ORDER BY received_epoch DESC LIMIT 10;
+SELECT * FROM nessie.telematics.telematics_real_time ORDER BY received_epoch DESC LIMIT 10;
 
 -- Ajusta la fecha (columna report_date)
 SELECT *
@@ -109,20 +110,20 @@ docker compose up -d telematics_api
 ```
 Endpoints (requieren header `Authorization: Bearer token1` por defecto de ejemplo):
 - `GET /health`
-- `GET /gps_reports?limit=100`
-- `GET /gps_reports?device_id=...&from_ts=...&to_ts=...`
+- `GET /telematics_real_time?limit=100`
+- `GET /telematics_real_time?device_id=...&from_ts=...&to_ts=...`
 - `GET /risk_score_daily?day=YYYY-MM-DD`
 
 Ejemplos:
 ```bash
 curl -H "Authorization: Bearer token1" http://localhost:9009/health
-curl -H "Authorization: Bearer token1" "http://localhost:9009/gps_reports?limit=50"
+curl -H "Authorization: Bearer token1" "http://localhost:9009/telematics_real_time?limit=50"
 ```
 
 ---
 
 ## 🛠️ Mantenimiento / Utilidades
-- `scripts/cleanup_gps_reports.sh`: ejemplo de limpieza / utilitario (ajustar antes de usar).
+- `scripts/cleanup_telematics_real_time.sh`: ejemplo de limpieza / utilitario (ajustar antes de usar).
 - Particiones Iceberg: revisar en S3 o vía `DESCRIBE TABLE` en Trino.
 - Actualización de credenciales: externalizar en variables / `.env` (actualmente algunos valores están embebidos en `create.sql`).
 
@@ -160,18 +161,31 @@ curl -H "Authorization: Bearer token1" "http://localhost:9009/gps_reports?limit=
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -f /opt/sql/create.sql"
 
 # Jobs streaming
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/gps_reports.sql"
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/telematics_raw_dlq.sql"
+docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/sink_telematics_real_time.sql"
+docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/sink_telematics_raw_dlq.sql"
 
 # Batch riesgo (Iceberg)
-docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/risk_score_daily.sql"
+docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/sink_risk_score_daily.sql"
 
-# Batch Cleanup
+# Batch Cleanup RAW And DLQ
 docker exec -it datalakehouse-trino-1 bash -lc \
-"trino --server http://localhost:8080 \
-       --catalog nessie \
-       --schema telematics \
-       -f /opt/sql/cleanup_raw_dlq.sql"
+'trino \
+  --server https://localhost:8080 \
+  --insecure \
+  --user cleanup \
+  --catalog nessie \
+  --schema telematics \
+  -f /opt/sql/cleanup_telematics_raw_dlq.sql'
+
+  # Batch Cleanup telematics real time
+docker exec -it datalakehouse-trino-1 bash -lc \
+'trino \
+  --server https://localhost:8080 \
+  --insecure \
+  --user cleanup \
+  --catalog nessie \
+  --schema telematics \
+  -f /opt/sql/cleanup_telematics_real_time.sql'
 
 # Trino CLI
 docker exec -it trino trino
@@ -184,6 +198,7 @@ docker exec -it trino trino
 - Latest por dispositivo: OK (upsert habilitado)
 - Score riesgo: scripts duales (Iceberg/Postgres) operativos
 - API: disponible para consultas básicas
+
 
 ---
 

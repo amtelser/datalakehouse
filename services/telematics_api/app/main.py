@@ -92,9 +92,9 @@ def health():
 #  Endpoints
 # =========================
 
-# 1) gps_reports
-@app.get("/gps_reports", dependencies=[Depends(auth_dependency)])
-def get_gps_reports(
+# 1) telematics_real_time
+@app.get("/telematics_real_time", dependencies=[Depends(auth_dependency)])
+def get_telematics_real_time(
     pagination: dict = Depends(pagination),
     device_id: Optional[str] = Query(None),
     day: Optional[str] = Query(None, description="YYYY-MM-DD (aplicado sobre gps_epoch en TIME_ZONE)"),
@@ -103,7 +103,7 @@ def get_gps_reports(
     report_type: Optional[List[str]] = Query(None),
 ):
     """
-    Listado de gps_reports.
+    Listado de telematics_real_time.
     - Todas las columnas timestamp (gps_epoch, received_epoch, decoded_epoch) se devuelven en TIME_ZONE.
     - El filtro 'day' se aplica sobre gps_epoch convertido a TIME_ZONE.
     - Paginación: limit/offset (offset emulado con row_number()).
@@ -161,7 +161,7 @@ def get_gps_reports(
           {decoded_epoch_tz}  AS decoded_epoch,
           correlation_id,
           device_id_bucket, received_day, received_hour, gps_day
-        FROM gps_reports
+        FROM telematics_real_time
         {where_sql}
         {order_clause}
         LIMIT ?
@@ -188,7 +188,7 @@ def get_gps_reports(
             correlation_id,
             device_id_bucket, received_day, received_hour, gps_day,
             row_number() OVER ({order_clause}) AS rn
-          FROM gps_reports
+          FROM telematics_real_time
           {where_sql}
         )
         SELECT

@@ -18,7 +18,7 @@ USE CATALOG nessie;
 CREATE DATABASE IF NOT EXISTS telematics;
 USE telematics;
 
-CREATE TABLE IF NOT EXISTS nessie.telematics.gps_reports (
+CREATE TABLE IF NOT EXISTS nessie.telematics.telematics_real_time (
   report_type              STRING,
   tenant                   STRING,
   provider                 STRING,
@@ -64,7 +64,7 @@ WITH (
   'write.parquet.bloom-filter-max-bytes'                     = '262144'
 );
 
-CREATE TEMPORARY TABLE kafka_gps_reports (
+CREATE TEMPORARY TABLE kafka_telematics_real_time (
   report_type              STRING,
   tenant                   STRING,
   provider                 STRING,
@@ -124,12 +124,12 @@ CREATE TEMPORARY TABLE kafka_gps_reports (
 );
 
 -- RISK SCORE DIARIO
-CREATE TABLE IF NOT EXISTS telematics.risk_score_daily (
+CREATE TABLE IF NOT EXISTS nessie.telematics.risk_score_daily (
   device_id         STRING,
   report_date       DATE,
   score             DOUBLE,
   level             STRING,
-  total_reports     INT,
+  total_reports     BIGINT,
   overspeed_reports INT,
   night_reports     INT,
   PRIMARY KEY (device_id, report_date) NOT ENFORCED
@@ -143,7 +143,7 @@ WITH (
 );
 
 -- MAXTRACK RAW
-CREATE TABLE IF NOT EXISTS telematics.telematics_maxtrack_raw (
+CREATE TABLE IF NOT EXISTS nessie.telematics.telematics_maxtrack_raw (
   device_id       STRING,
   raw_report      STRING,
   correlation_id  STRING,
@@ -167,10 +167,9 @@ WITH (
   'write.parquet.bloom-filter-max-bytes'                     = '262144'
 );
 
-CREATE TEMPORARY TABLE kafka_maxtrack_raw (
+CREATE TEMPORARY TABLE kafka_telematics_maxtrack_raw (
   device_id       STRING,
   raw_report      STRING,
-  received_epoch  STRING,
   correlation_id  STRING
 ) WITH (
   'connector' = 'kafka',
@@ -203,7 +202,7 @@ CREATE TEMPORARY TABLE kafka_maxtrack_raw (
 );
 
 -- QUECLINK RAW
-CREATE TABLE IF NOT EXISTS telematics.telematics_queclink_raw (
+CREATE TABLE IF NOT EXISTS nessie.telematics.telematics_queclink_raw (
   device_id       STRING,
   raw_report      STRING,
   correlation_id  STRING,
@@ -225,10 +224,9 @@ WITH (
   'write.parquet.bloom-filter-max-bytes'                     = '262144'
 );
 
-CREATE TEMPORARY TABLE kafka_queclink_raw (
+CREATE TEMPORARY TABLE kafka_telematics_queclink_raw (
   device_id       STRING,
   raw_report      STRING,
-  received_epoch  STRING,  -- NO se usa
   correlation_id  STRING
 ) WITH (
   'connector' = 'kafka',
@@ -261,7 +259,7 @@ CREATE TEMPORARY TABLE kafka_queclink_raw (
 );
 
 -- SUNTECH RAW
-CREATE TABLE IF NOT EXISTS telematics.telematics_suntech_raw (
+CREATE TABLE IF NOT EXISTS nessie.telematics.telematics_suntech_raw (
   device_id       STRING,
   raw_report      STRING,
   correlation_id  STRING,
@@ -283,10 +281,9 @@ WITH (
   'write.parquet.bloom-filter-max-bytes'                     = '262144'
 );
 
-CREATE TEMPORARY TABLE kafka_suntech_raw (
+CREATE TEMPORARY TABLE kafka_telematics_suntech_raw (
   device_id       STRING,
   raw_report      STRING,
-  received_epoch  STRING,  -- NO se usa
   correlation_id  STRING
 ) WITH (
   'connector' = 'kafka',
@@ -319,7 +316,7 @@ CREATE TEMPORARY TABLE kafka_suntech_raw (
 );
 
 -- MAXTRACK DLQ
-CREATE TABLE IF NOT EXISTS telematics.telematics_maxtrack_raw_dlq (
+CREATE TABLE IF NOT EXISTS nessie.telematics.telematics_maxtrack_raw_dlq (
   raw_report      STRING,
   created_at      TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
   created_day     DATE
@@ -336,11 +333,8 @@ WITH (
   'write.order-by' = 'created_at'
 );
 
-CREATE TEMPORARY TABLE kafka_maxtrack_raw_dlq (
-  device_id       STRING,  -- NO se usa
-  raw_report      STRING,
-  received_epoch  STRING,  -- NO se usa
-  correlation_id  STRING  -- NO se usa
+CREATE TEMPORARY TABLE kafka_telematics_maxtrack_raw_dlq (
+  raw_report      STRING
 ) WITH (
   'connector' = 'kafka',
   'topic' = 'maxtrack.iot_decoder.dlq',
@@ -372,7 +366,7 @@ CREATE TEMPORARY TABLE kafka_maxtrack_raw_dlq (
 );
 
 -- QUECLINK DLQ
-CREATE TABLE IF NOT EXISTS telematics.telematics_queclink_raw_dlq (
+CREATE TABLE IF NOT EXISTS nessie.telematics.telematics_queclink_raw_dlq (
   raw_report      STRING,
   created_at      TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
   created_day     DATE
@@ -389,11 +383,8 @@ WITH (
   'write.order-by' = 'created_at'
 );
 
-CREATE TEMPORARY TABLE kafka_queclink_raw_dlq (
-  device_id       STRING,  -- NO se usa
-  raw_report      STRING,
-  received_epoch  STRING,  -- NO se usa
-  correlation_id  STRING   -- NO se usa  
+CREATE TEMPORARY TABLE kafka_telematics_queclink_raw_dlq (
+  raw_report      STRING
 ) WITH (
   'connector' = 'kafka',
   'topic' = 'queclink.iot_decoder.dlq',
@@ -425,7 +416,7 @@ CREATE TEMPORARY TABLE kafka_queclink_raw_dlq (
 );
 
 -- SUNTECH DLQ
-CREATE TABLE IF NOT EXISTS telematics.telematics_suntech_raw_dlq (
+CREATE TABLE IF NOT EXISTS nessie.telematics.telematics_suntech_raw_dlq (
   raw_report      STRING,
   created_at      TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
   created_day     DATE
@@ -442,11 +433,8 @@ WITH (
   'write.order-by' = 'created_at'
 );
 
-CREATE TEMPORARY TABLE kafka_suntech_raw_dlq (
-  device_id       STRING,  -- NO se usa
-  raw_report      STRING,
-  received_epoch  STRING,  -- NO se usa
-  correlation_id  STRING   -- NO se usa
+CREATE TEMPORARY TABLE kafka_telematics_suntech_raw_dlq (
+  raw_report      STRING
 ) WITH (
   'connector' = 'kafka',
   'topic' = 'suntech.iot_decoder.dlq',
