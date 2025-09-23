@@ -51,17 +51,20 @@ WITH (
   'format-version' = '2',
   'write.format.default' = 'parquet',
   'write.parquet.compression-codec' = 'ZSTD',
-  'write.target-file-size-bytes' = '1073741824',
+  'write.target-file-size-bytes' = '268435456',  -- 256 MiB
   'write.distribution-mode'      = 'hash',
+  'write.order-by' = 'device_id, gps_epoch',
   'write.metadata.metrics.default' = 'truncate(16)',
-  'write.metadata.metrics.column.device_id'       = 'none',
   'write.metadata.metrics.column.gps_epoch'       = 'full',
   'write.metadata.metrics.column.received_epoch'  = 'full',
-  'write.metadata.metrics.column.report_type'     = 'counts',
   'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
-  'write.parquet.bloom-filter-enabled.column.report_type'    = 'false',
-  'write.parquet.bloom-filter-enabled.column.correlation_id' = 'false',
-  'write.parquet.bloom-filter-max-bytes'                     = '262144'
+  'write.parquet.bloom-filter-enabled.column.gps_epoch'      = 'true',
+  'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
+  'write.parquet.bloom-filter-max-bytes'                     = '262144',
+  'read.parquet.vectorization.enabled' = 'true',
+  'commit.retry.num-retries'='5',
+  'commit.retry.min-wait-ms'='1000',
+  'commit.retry.max-wait-ms'='30000'
 );
 
 CREATE TEMPORARY TABLE kafka_telematics_real_time (

@@ -36,9 +36,6 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 ---
 
 ## 📂 Archivos SQL (carpeta `config/flink/`)
-Copiar el contenido al servidor: 
-scp -r /Users/ar-0980/Library/CloudStorage/OneDrive-EncontrackS.A.deC.V/Documentos/Encontrack/proyectos/datalakehouse/* ubuntu@172.25.27.244:/opt/iothub-stack/
-sudo systemctl start iothub-stack.service
 - `cleanup_telematics_raw_dlq.sql` (cleanup_telematics_raw_dlq) / scripts auxiliares.
 - `cleanup_telematics_real_time.sql` (cleanup_telematics_real_time) / scripts auxiliares.
 - `create.sql`: crea catálogo Nessie, DB `telematics`, tablas Iceberg y fuentes temporales (Kafka / JDBC Postgres).
@@ -157,6 +154,13 @@ curl -H "Authorization: Bearer token1" "http://localhost:9009/telematics_real_ti
 
 ## 📒 Referencia rápida (cheat sheet)
 ```bash
+# Copiar el contenido al servidor: 
+scp -r datalakehouse/* ubuntu@172.25.27.244:/opt/iothub-stack/
+# Iniciar servicio
+sudo systemctl start iothub-stack.service
+```
+---
+```bash
 # Crear objetos base
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -f /opt/sql/create.sql"
 
@@ -199,7 +203,7 @@ docker exec -it trino trino
 - Score riesgo: scripts duales (Iceberg/Postgres) operativos
 - API: disponible para consultas básicas
 
-
----
-
-Contribuciones / mejoras bienvenidas. Mantener consistencia de estilo SQL y evitar credenciales hardcode en futuros cambios.
+## ✅ Cron
+- chmod +x scripts/batch_jobs.sh
+- crontab -e
+- agregar para que se ejecute a las 5am (servidor en utc): 0 11 * * * /opt/iothub-stack/scripts/batch_jobs.sh >> /var/log/batch_jobs.log 2>&1

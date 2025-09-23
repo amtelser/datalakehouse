@@ -18,13 +18,13 @@ x-mounts:
     read_only: true
   lib_flink_kafka: &lib_flink_kafka
     type: bind
-    source: ./runtime/lib/flink-connector-kafka-3.4.0-1.20.jar
-    target: /opt/flink/lib/flink-connector-kafka-3.4.0-1.20.jar
+    source: ./runtime/lib/flink-connector-kafka-4.0.1-2.0.jar
+    target: /opt/flink/lib/flink-connector-kafka-4.0.1-2.0.jar
     read_only: true
   lib_kafka_clients: &lib_kafka_clients
     type: bind
-    source: ./runtime/lib/kafka-clients-3.4.0.jar
-    target: /opt/flink/lib/kafka-clients-3.4.0.jar
+    source: ./runtime/lib/kafka-clients-3.9.1.jar
+    target: /opt/flink/lib/kafka-clients-3.9.1.jar
     read_only: true
   lib_flink_s3_hadoop: &lib_flink_s3_hadoop
     type: bind
@@ -176,7 +176,7 @@ services:
         FLINK_PROPERTIES=
         # Core
         jobmanager.rpc.address: jobmanager
-        parallelism.default: 16
+        parallelism.default: 8
 
         # Checkpointing / Exactly-once
         execution.checkpointing.interval: 30 s
@@ -199,16 +199,17 @@ services:
         s3.path-style-access: true
         s3.access-key: 
         s3.secret-key: 
-        s3.ssl.enabled: false
+        s3.ssl.enabled: true
         fs.default-scheme: s3://iothub-telematics-data-stg
 
         # Memoria
         jobmanager.memory.process.size: 12288m
         jobmanager.memory.jvm-metaspace.size: 4096m
         jobmanager.memory.jvm-overhead.fraction: 0.10
-        #jobmanager.memory.heap.size: 2048m
-        #jobmanager.memory.off-heap.size: 2048m
-        #jobmanager.memory.managed.size: 1024m
+        
+        # Heartbeat
+        heartbeat.interval: 10000
+        heartbeat.timeout: 180000
       - TZ=America/Mexico_City
       - AWS_REGION=us-west-2
       - AWS_DEFAULT_REGION=us-west-2
@@ -243,12 +244,14 @@ services:
   taskmanager:
     image: flink:1.20.2-scala_2.12
     command: taskmanager
+    deploy:
+      replicas: 2
     environment:
       - |
         FLINK_PROPERTIES=
         # Core
         jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 16
+        taskmanager.numberOfTaskSlots: 8
         taskmanager.memory.process.size: 12288m
         taskmanager.memory.managed.size: 4096m
         taskmanager.memory.network.min: 1024m
@@ -258,9 +261,11 @@ services:
         s3.path-style-access: true
         s3.access-key: 
         s3.secret-key: 
-        s3.ssl.enabled: false
+        s3.ssl.enabled: true
         # Evita HDFS por defecto
         fs.default-scheme: s3://iothub-telematics-data-stg
+        heartbeat.interval: 10000
+        heartbeat.timeout: 180000
       - TZ=America/Mexico_City
       - AWS_REGION=us-west-2
       - AWS_DEFAULT_REGION=us-west-2
