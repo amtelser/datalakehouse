@@ -100,49 +100,44 @@ CREATE TEMPORARY TABLE kafka_telematics_real_time (
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode'   = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
-  -- ********* Tuning de consumo *********
-  -- Tamaños de fetch moderados para evitar ráfagas gigantes:
-  'properties.max.partition.fetch.bytes' = '1048576',   -- 1 MiB por partición
-  'properties.fetch.max.bytes' = '5242880',             -- 5 MiB por request total
-  'properties.fetch.min.bytes' = '65536',               -- 64 KiB mínimo antes de devolver
-  'properties.fetch.max.wait.ms' = '200',               -- espera un poquito para batching
-  -- Limita registros por poll para evitar picos en operadores downstream:
+  'properties.max.partition.fetch.bytes' = '1048576',
+  'properties.fetch.max.bytes' = '5242880',
+  'properties.fetch.min.bytes' = '65536',
+  'properties.fetch.max.wait.ms' = '200',
   'properties.max.poll.records' = '500',
-  -- Mantén la sesión estable y tolerante a pausas (GC, I/O):
   'properties.session.timeout.ms' = '30000',
   'properties.heartbeat.interval.ms' = '10000',
-  'properties.max.poll.interval.ms' = '600000',         -- 10 min
-  -- Menos rebalances:
+  'properties.max.poll.interval.ms' = '600000',
   'properties.partition.assignment.strategy' = 'org.apache.kafka.clients.consumer.CooperativeStickyAssignor',
-  -- DNS / timeouts de red
   'properties.client.dns.lookup' = 'use_all_dns_ips',
   'properties.request.timeout.ms' = '120000',
   'properties.retry.backoff.ms'   = '1000',
   'properties.connections.max.idle.ms' = '300000',
-  -- Descubrimiento de nuevas particiones (si aplica)
   'scan.topic-partition-discovery.interval' = '5 min',
-  -- Formato
   'format' = 'json',
   'json.ignore-parse-errors' = 'true'
 );
 
 -- RISK SCORE DIARIO
 CREATE TABLE IF NOT EXISTS nessie.telematics.risk_score_daily (
-  device_id         STRING,
+  device_id         VARCHAR,
   report_date       DATE,
   score             DOUBLE,
-  level             STRING,
+  level             VARCHAR,
   total_reports     BIGINT,
-  overspeed_reports INT,
-  night_reports     INT,
+  overspeed_reports BIGINT,
+  night_reports     BIGINT,
   PRIMARY KEY (device_id, report_date) NOT ENFORCED
 )
 WITH (
   'format-version' = '2',
-  'write.format.default' = 'parquet',
-  'parquet.compression' = 'zstd',
-  'write.upsert.enabled' = 'true',
-  'partitioning' = 'report_date, bucket(1024, device_id)'
+  'write.format.default' = 'PARQUET',
+  'parquet.compression'  = 'ZSTD',
+  'partitioning' = 'report_date',
+  'write.parquet.bloom-filter-enabled.column.device_id' = 'true',
+  'write.metadata.metrics.default'            = 'truncate(16)',
+  'write.metadata.metrics.column.report_date' = 'full',
+  'write.metadata.metrics.column.device_id'   = 'full'
 );
 
 -- MAXTRACK RAW
@@ -158,10 +153,8 @@ WITH (
   'format-version' = '2',
   'write.format.default' = 'parquet',
   'parquet.compression' = 'zstd',
-  -- Volumen bajo → archivos más pequeños (128 MiB)
   'write.target-file-size-bytes' = '134217728',
   'write.distribution-mode' = 'hash',
-  -- Métricas mínimas (reduce metadatos)
   'write.metadata.metrics.default' = 'truncate(16)',
   'write.metadata.metrics.column.device_id'      = 'none',
   'write.metadata.metrics.column.correlation_id' = 'none',
@@ -185,10 +178,9 @@ CREATE TEMPORARY TABLE kafka_telematics_maxtrack_raw (
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
-  -- Tuning liviano
-  'properties.max.partition.fetch.bytes' = '524288',   -- 512 KiB
-  'properties.fetch.max.bytes' = '2097152',            -- 2 MiB
-  'properties.fetch.min.bytes' = '65536',              -- 64 KiB
+  'properties.max.partition.fetch.bytes' = '524288',
+  'properties.fetch.max.bytes' = '2097152',
+  'properties.fetch.min.bytes' = '65536',
   'properties.fetch.max.wait.ms' = '200',
   'properties.max.poll.records' = '200',
   'properties.session.timeout.ms' = '30000',
@@ -242,7 +234,6 @@ CREATE TEMPORARY TABLE kafka_telematics_queclink_raw (
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
-  -- Tuning liviano
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',
@@ -299,7 +290,6 @@ CREATE TEMPORARY TABLE kafka_telematics_suntech_raw (
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
-  -- Tuning liviano
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',
@@ -349,7 +339,6 @@ CREATE TEMPORARY TABLE kafka_telematics_maxtrack_raw_dlq (
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
-  -- Tuning liviano
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',
@@ -399,7 +388,6 @@ CREATE TEMPORARY TABLE kafka_telematics_queclink_raw_dlq (
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
-  -- Tuning liviano
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',
@@ -449,7 +437,6 @@ CREATE TEMPORARY TABLE kafka_telematics_suntech_raw_dlq (
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
   'properties.auto.offset.reset' = 'latest',
-  -- Tuning liviano
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',

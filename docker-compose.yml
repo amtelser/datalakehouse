@@ -76,15 +76,10 @@ x-mounts:
     source: ./runtime/lib/flink-connector-jdbc-3.3.0-1.20.jar
     target: /opt/flink/lib/flink-connector-jdbc-3.3.0-1.20.jar
     read_only: true
-  sql_cleanup_telematics_raw_dlq: &sql_cleanup_telematics_raw_dlq
+  sql_cleanup: &sql_cleanup
     type: bind
-    source: ./config/flink/cleanup_telematics_raw_dlq.sql
-    target: /opt/sql/cleanup_telematics_raw_dlq.sql
-    read_only: true
-  sql_cleanup_telematics_real_time: &sql_cleanup_telematics_real_time
-    type: bind
-    source: ./config/flink/cleanup_telematics_real_time.sql
-    target: /opt/sql/cleanup_telematics_real_time.sql
+    source: ./config/flink/cleanup.sql
+    target: /opt/sql/cleanup.sql
     read_only: true
   sql_create: &sql_create
     type: bind
@@ -233,8 +228,7 @@ services:
       - *lib_hadoop_mr_jobclient
       - *lib_postgres
       - *lib_flink_sql_jdbc
-      - *sql_cleanup_telematics_raw_dlq
-      - *sql_cleanup_telematics_real_time
+      - *sql_cleanup
       - *sql_create
       - *sql_sink_risk_score_daily
       - *sql_sink_telematics_real_time

@@ -17,17 +17,6 @@ docker exec -i iothub-stack-trino-1 bash -lc \
   --user cleanup \
   --catalog nessie \
   --schema telematics \
-  -f /opt/sql/cleanup_telematics_raw_dlq.sql'
-
-# 3) Batch Cleanup telematics real time
-echo "[INFO] Ejecutando Cleanup telematics real time..."
-docker exec -i iothub-stack-trino-1 bash -lc \
-'trino \
-  --server https://localhost:8080 \
-  --insecure \
-  --user cleanup \
-  --catalog nessie \
-  --schema telematics \
-  -f /opt/sql/cleanup_telematics_real_time.sql'
+  -f /opt/sql/cleanup.sql'
 
 echo "=== [$(date)] Batch finalizado ==="

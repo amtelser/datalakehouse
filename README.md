@@ -36,8 +36,7 @@ Pipeline analítico para telemetría GPS usando un enfoque **Lakehouse** (Iceber
 ---
 
 ## 📂 Archivos SQL (carpeta `config/flink/`)
-- `cleanup_telematics_raw_dlq.sql` (cleanup_telematics_raw_dlq) / scripts auxiliares.
-- `cleanup_telematics_real_time.sql` (cleanup_telematics_real_time) / scripts auxiliares.
+- `cleanup.sql` (cleanup) / scripts auxiliares.
 - `create.sql`: crea catálogo Nessie, DB `telematics`, tablas Iceberg y fuentes temporales (Kafka / JDBC Postgres).
 - `sink_risk_score_daily.sql`: job batch → calcula score y escribe en tabla Iceberg `sink_risk_score_daily`.
 - `sink_telematics_real_time.sql`: job streaming → ingesta Kafka → Iceberg (`sink_telematics_real_time`).
@@ -120,7 +119,7 @@ curl -H "Authorization: Bearer token1" "http://localhost:9009/telematics_real_ti
 ---
 
 ## 🛠️ Mantenimiento / Utilidades
-- `scripts/cleanup_telematics_real_time.sh`: ejemplo de limpieza / utilitario (ajustar antes de usar).
+- `scripts/cleanup.sh`: ejemplo de limpieza / utilitario (ajustar antes de usar).
 - Particiones Iceberg: revisar en S3 o vía `DESCRIBE TABLE` en Trino.
 - Actualización de credenciales: externalizar en variables / `.env` (actualmente algunos valores están embebidos en `create.sql`).
 
@@ -171,7 +170,7 @@ docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f
 # Batch riesgo (Iceberg)
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/sink_risk_score_daily.sql"
 
-# Batch Cleanup RAW And DLQ
+# Batch Cleanup
 docker exec -it datalakehouse-trino-1 bash -lc \
 'trino \
   --server https://localhost:8080 \
@@ -179,17 +178,7 @@ docker exec -it datalakehouse-trino-1 bash -lc \
   --user cleanup \
   --catalog nessie \
   --schema telematics \
-  -f /opt/sql/cleanup_telematics_raw_dlq.sql'
-
-  # Batch Cleanup telematics real time
-docker exec -it datalakehouse-trino-1 bash -lc \
-'trino \
-  --server https://localhost:8080 \
-  --insecure \
-  --user cleanup \
-  --catalog nessie \
-  --schema telematics \
-  -f /opt/sql/cleanup_telematics_real_time.sql'
+  -f /opt/sql/cleanup.sql'
 
 # Trino CLI
 docker exec -it trino trino
@@ -206,4 +195,4 @@ docker exec -it trino trino
 ## ✅ Cron
 - chmod +x scripts/batch_jobs.sh
 - crontab -e
-- agregar para que se ejecute a las 5am (servidor en utc): 0 11 * * * /opt/iothub-stack/scripts/batch_jobs.sh >> /var/log/batch_jobs.log 2>&1
+- agregar para que se ejecute a las 1am (servidor en utc): 0 7 * * * /opt/iothub-stack/scripts/batch_jobs.sh >> /var/log/batch_jobs.log 2>&1

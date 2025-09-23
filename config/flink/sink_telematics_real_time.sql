@@ -37,7 +37,7 @@ SELECT
   CAST(TO_TIMESTAMP_LTZ(CAST(received_epoch AS BIGINT) * 1000, 3) AS TIMESTAMP_LTZ(3)) AS received_epoch,
   CAST(TO_TIMESTAMP_LTZ(CAST(decoded_epoch  AS BIGINT) * 1000, 3) AS TIMESTAMP_LTZ(3)) AS decoded_epoch,
   correlation_id,
-  CAST(MOD(ABS(HASH_CODE(device_id)), 1024) AS INT) AS device_id_bucket,
+  CAST(MOD(ABS(HASH_CODE(device_id)), 32) AS INT) AS device_id_bucket,
   CAST(TO_TIMESTAMP_LTZ(CAST(received_epoch AS BIGINT) * 1000, 3) AS DATE) AS received_day
 FROM kafka_telematics_real_time
 WHERE report_type IN ('STATUS','ALERT')
