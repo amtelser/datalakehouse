@@ -10,7 +10,7 @@ docker exec -i jobmanager bash -lc \
 
 # 2) Batch Cleanup RAW And DLQ
 echo "[INFO] Ejecutando Cleanup RAW & DLQ..."
-docker exec -i datalakehouse-trino-1 bash -lc \
+docker exec -i iothub-stack-trino-1 bash -lc \
 'trino \
   --server https://localhost:8080 \
   --insecure \
@@ -21,7 +21,7 @@ docker exec -i datalakehouse-trino-1 bash -lc \
 
 # 3) Batch Cleanup telematics real time
 echo "[INFO] Ejecutando Cleanup telematics real time..."
-docker exec -i datalakehouse-trino-1 bash -lc \
+docker exec -i iothub-stack-trino-1 bash -lc \
 'trino \
   --server https://localhost:8080 \
   --insecure \
