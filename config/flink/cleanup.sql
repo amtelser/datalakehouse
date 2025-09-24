@@ -39,7 +39,7 @@ ANALYZE telematics_suntech_raw_dlq;
 
 -- RISK SCORE DAILY
 
-ALTER TABLE nessie.telematics.risk_score_daily          EXECUTE optimize(file_size_threshold => '128MB') WHERE received_day = current_date - INTERVAL '1' day;
+ALTER TABLE nessie.telematics.risk_score_daily          EXECUTE optimize(file_size_threshold => '128MB');
 
 ALTER TABLE "nessie"."telematics"."risk_score_daily"    EXECUTE remove_orphan_files(retention_threshold => '2d');
 
