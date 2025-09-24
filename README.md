@@ -157,6 +157,8 @@ curl -H "Authorization: Bearer token1" "http://localhost:9009/telematics_real_ti
 scp -r datalakehouse/* ubuntu@172.25.27.244:/opt/iothub-stack/
 # Iniciar servicio
 sudo systemctl start iothub-stack.service
+# Iniciar FLINK SQL
+docker compose exec jobmanager bin/sql-client.sh
 ```
 ---
 ```bash

@@ -64,7 +64,9 @@ WITH (
   'read.parquet.vectorization.enabled' = 'true',
   'commit.retry.num-retries'='5',
   'commit.retry.min-wait-ms'='1000',
-  'commit.retry.max-wait-ms'='30000'
+  'commit.retry.max-wait-ms'='30000',
+  'gc.enabled' = 'true',
+  'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
 CREATE TEMPORARY TABLE kafka_telematics_real_time (
@@ -137,7 +139,9 @@ WITH (
   'write.parquet.bloom-filter-enabled.column.device_id' = 'true',
   'write.metadata.metrics.default'            = 'truncate(16)',
   'write.metadata.metrics.column.report_date' = 'full',
-  'write.metadata.metrics.column.device_id'   = 'full'
+  'write.metadata.metrics.column.device_id'   = 'full',
+  'gc.enabled' = 'true',
+  'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
 -- MAXTRACK RAW
@@ -160,7 +164,9 @@ WITH (
   'write.metadata.metrics.column.correlation_id' = 'none',
   'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
   'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
-  'write.parquet.bloom-filter-max-bytes'                     = '262144'
+  'write.parquet.bloom-filter-max-bytes'                     = '262144',
+  'gc.enabled' = 'true',
+  'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
 CREATE TEMPORARY TABLE kafka_telematics_maxtrack_raw (
@@ -216,7 +222,9 @@ WITH (
   'write.metadata.metrics.column.correlation_id' = 'none',
   'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
   'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
-  'write.parquet.bloom-filter-max-bytes'                     = '262144'
+  'write.parquet.bloom-filter-max-bytes'                     = '262144',
+  'gc.enabled' = 'true',
+  'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
 CREATE TEMPORARY TABLE kafka_telematics_queclink_raw (
@@ -272,7 +280,9 @@ WITH (
   'write.metadata.metrics.column.correlation_id' = 'none',
   'write.parquet.bloom-filter-enabled.column.device_id'      = 'true',
   'write.parquet.bloom-filter-enabled.column.correlation_id' = 'true',
-  'write.parquet.bloom-filter-max-bytes'                     = '262144'
+  'write.parquet.bloom-filter-max-bytes'                     = '262144',
+  'gc.enabled' = 'true',
+  'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
 CREATE TEMPORARY TABLE kafka_telematics_suntech_raw (
@@ -323,7 +333,9 @@ WITH (
   'write.distribution-mode' = 'hash',
   'write.metadata.metrics.default' = 'truncate(16)',
   'write.metadata.metrics.column.created_at' = 'full',
-  'write.order-by' = 'created_at'
+  'write.order-by' = 'created_at',
+  'gc.enabled' = 'true',
+  'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
 CREATE TEMPORARY TABLE kafka_telematics_maxtrack_raw_dlq (
@@ -372,7 +384,9 @@ WITH (
   'write.distribution-mode' = 'hash',
   'write.metadata.metrics.default' = 'truncate(16)',
   'write.metadata.metrics.column.created_at' = 'full',
-  'write.order-by' = 'created_at'
+  'write.order-by' = 'created_at',
+  'gc.enabled' = 'true',
+  'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
 CREATE TEMPORARY TABLE kafka_telematics_queclink_raw_dlq (
@@ -421,7 +435,9 @@ WITH (
   'write.distribution-mode' = 'hash',
   'write.metadata.metrics.default' = 'truncate(16)',
   'write.metadata.metrics.column.created_at' = 'full',
-  'write.order-by' = 'created_at'
+  'write.order-by' = 'created_at',
+  'gc.enabled' = 'true',
+  'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
 CREATE TEMPORARY TABLE kafka_telematics_suntech_raw_dlq (
