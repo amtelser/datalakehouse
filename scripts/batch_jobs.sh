@@ -10,11 +10,12 @@ docker exec -i jobmanager bash -lc \
 
 # 2) Batch Cleanup RAW And DLQ
 echo "[INFO] Ejecutando Cleanup RAW & DLQ..."
-docker exec -i iothub-stack-trino-1 bash -lc \
+docker exec -e TRINO_PASSWORD='cleanup2025' -i iothub-stack-trino-1 bash -lc \
 'trino \
   --server https://localhost:8080 \
   --insecure \
   --user cleanup \
+  --password \
   --catalog nessie \
   --schema telematics \
   -f /opt/sql/cleanup.sql'
