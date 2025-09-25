@@ -102,18 +102,16 @@ LIMIT 20;
 ## 🧪 API REST (`telematics_api`)
 Levantar sólo la API (si ya está el stack principal):
 ```bash
+docker compose build telematics_api
 docker compose up -d telematics_api
 ```
-Endpoints (requieren header `Authorization: Bearer token1` por defecto de ejemplo):
-- `GET /health`
-- `GET /telematics_real_time?limit=100`
-- `GET /telematics_real_time?device_id=...&from_ts=...&to_ts=...`
-- `GET /risk_score_daily?day=YYYY-MM-DD`
+Endpoints (requieren header `Authorization: Bearer xxxx` por defecto de ejemplo):
 
 Ejemplos:
 ```bash
-curl -H "Authorization: Bearer token1" http://localhost:9009/health
-curl -H "Authorization: Bearer token1" "http://localhost:9009/telematics_real_time?limit=50"
+curl -H "Authorization: Bearer xxxx" http://localhost:9009/health
+curl -H "Authorization: Bearer xxxx" "http://172.25.27.244:9009/telematics_real_time?device_id=xxxxxx&gps_epoch_start=2025-09-25T00:00:00&gps_epoch_end=2025-09-25T23:59:59&limit=10000&offset=0"
+curl -H "Authorization: Bearer xxxx" "http://172.25.27.244:9009/risk_score_daily?device_id=1520203774&report_date_start=2025-09-23&report_date_end=2025-09-26"
 ```
 
 ---

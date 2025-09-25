@@ -69,7 +69,7 @@ WITH (
   'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
-CREATE TEMPORARY TABLE kafka_telematics_real_time (
+CREATE OR REPLACE TEMPORARY TABLE kafka_telematics_real_time (
   report_type              STRING,
   tenant                   STRING,
   provider                 STRING,
@@ -101,7 +101,7 @@ CREATE TEMPORARY TABLE kafka_telematics_real_time (
   'properties.ssl.endpoint.identification.algorithm' = 'https',
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode'   = 'group-offsets',
-  'properties.auto.offset.reset' = 'latest',
+  'properties.auto.offset.reset' = 'earliest',
   'properties.max.partition.fetch.bytes' = '1048576',
   'properties.fetch.max.bytes' = '5242880',
   'properties.fetch.min.bytes' = '65536',
@@ -169,7 +169,7 @@ WITH (
   'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
-CREATE TEMPORARY TABLE kafka_telematics_maxtrack_raw (
+CREATE OR REPLACE TEMPORARY TABLE kafka_telematics_maxtrack_raw (
   device_id       STRING,
   raw_report      STRING,
   correlation_id  STRING
@@ -183,7 +183,7 @@ CREATE TEMPORARY TABLE kafka_telematics_maxtrack_raw (
   'properties.ssl.endpoint.identification.algorithm' = 'https',
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
-  'properties.auto.offset.reset' = 'latest',
+  'properties.auto.offset.reset' = 'earliest',
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',
@@ -227,7 +227,7 @@ WITH (
   'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
-CREATE TEMPORARY TABLE kafka_telematics_queclink_raw (
+CREATE OR REPLACE TEMPORARY TABLE kafka_telematics_queclink_raw (
   device_id       STRING,
   raw_report      STRING,
   correlation_id  STRING
@@ -241,7 +241,7 @@ CREATE TEMPORARY TABLE kafka_telematics_queclink_raw (
   'properties.ssl.endpoint.identification.algorithm' = 'https',
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
-  'properties.auto.offset.reset' = 'latest',
+  'properties.auto.offset.reset' = 'earliest',
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',
@@ -285,7 +285,7 @@ WITH (
   'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
-CREATE TEMPORARY TABLE kafka_telematics_suntech_raw (
+CREATE OR REPLACE TEMPORARY TABLE kafka_telematics_suntech_raw (
   device_id       STRING,
   raw_report      STRING,
   correlation_id  STRING
@@ -299,7 +299,7 @@ CREATE TEMPORARY TABLE kafka_telematics_suntech_raw (
   'properties.ssl.endpoint.identification.algorithm' = 'https',
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
-  'properties.auto.offset.reset' = 'latest',
+  'properties.auto.offset.reset' = 'earliest',
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',
@@ -338,7 +338,7 @@ WITH (
   'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
-CREATE TEMPORARY TABLE kafka_telematics_maxtrack_raw_dlq (
+CREATE OR REPLACE TEMPORARY TABLE kafka_telematics_maxtrack_raw_dlq (
   raw_report      STRING
 ) WITH (
   'connector' = 'kafka',
@@ -350,7 +350,7 @@ CREATE TEMPORARY TABLE kafka_telematics_maxtrack_raw_dlq (
   'properties.ssl.endpoint.identification.algorithm' = 'https',
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
-  'properties.auto.offset.reset' = 'latest',
+  'properties.auto.offset.reset' = 'earliest',
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',
@@ -389,7 +389,7 @@ WITH (
   'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
-CREATE TEMPORARY TABLE kafka_telematics_queclink_raw_dlq (
+CREATE OR REPLACE TEMPORARY TABLE kafka_telematics_queclink_raw_dlq (
   raw_report      STRING
 ) WITH (
   'connector' = 'kafka',
@@ -401,7 +401,7 @@ CREATE TEMPORARY TABLE kafka_telematics_queclink_raw_dlq (
   'properties.ssl.endpoint.identification.algorithm' = 'https',
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
-  'properties.auto.offset.reset' = 'latest',
+  'properties.auto.offset.reset' = 'earliest',
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',
@@ -440,7 +440,7 @@ WITH (
   'write.metadata.delete-after-commit.enabled' = 'true'
 );
 
-CREATE TEMPORARY TABLE kafka_telematics_suntech_raw_dlq (
+CREATE OR REPLACE TEMPORARY TABLE kafka_telematics_suntech_raw_dlq (
   raw_report      STRING
 ) WITH (
   'connector' = 'kafka',
@@ -452,7 +452,7 @@ CREATE TEMPORARY TABLE kafka_telematics_suntech_raw_dlq (
   'properties.ssl.endpoint.identification.algorithm' = 'https',
   'properties.group.id' = 'staging.datalake-telematics',
   'scan.startup.mode' = 'group-offsets',
-  'properties.auto.offset.reset' = 'latest',
+  'properties.auto.offset.reset' = 'earliest',
   'properties.max.partition.fetch.bytes' = '524288',
   'properties.fetch.max.bytes' = '2097152',
   'properties.fetch.min.bytes' = '65536',

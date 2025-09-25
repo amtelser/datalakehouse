@@ -1,6 +1,6 @@
 import os
 import requests
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from datetime import datetime, date
 
 import pytz
@@ -35,12 +35,12 @@ app = FastAPI(
     title="Telematics API",
     version="1.0.0",
     description="API para exponer datos de Nessie/Iceberg vía Trino.\n\n"
-                "• /telematics_real_time: filtrar por device_id y/o gps_epoch\n"
+                "• /telematics_real_time: device_id + rango gps_epoch (requeridos)\n"
                 "• /risk_score_daily: filtrar por device_id y/o report_date\n"
                 "Auth: Bearer token (ver `components.securitySchemes.bearerAuth`)",
 )
 
-# CORS middleware (maneja wildcard *)
+# CORS middleware
 if ANY_ORIGIN:
     app.add_middleware(
         CORSMiddleware,
@@ -72,7 +72,7 @@ def require_token(credentials: HTTPAuthorizationCredentials = Depends(auth_schem
 # Conexión Trino (HTTPS + BasicAuth + Skip TLS Verify)
 def trino_conn():
     session = requests.Session()
-    session.verify = False  # ⚠️ Skip TLS verify (útil en dev con cert autofirmado)
+    session.verify = False  # ⚠️ Skip TLS verify (dev con cert autofirmado)
 
     conn = trino.dbapi.connect(
         host=TRINO_HOST,
@@ -82,31 +82,85 @@ def trino_conn():
         catalog=TRINO_CATALOG,
         schema=TRINO_SCHEMA,
         http_scheme="https",
-        http_session=session,   # pasa la sesión con verify=False
+        http_session=session,
     )
     cur = conn.cursor()
+    # La sesión de Trino interpreta/retorna timestamps en esta zona
     cur.execute(f"SET TIME ZONE '{TIME_ZONE}'")
     return conn
 
 # =========================
-# Helpers
+# Helpers (TZ local y formato exacto)
 # =========================
-MX_TZ = pytz.timezone(TIME_ZONE)
+LOCAL_TZ = pytz.timezone(TIME_ZONE)
+TIMESTAMP_FIELDS = {"gps_epoch", "received_epoch", "decoded_epoch"}
 
-def parse_dt(s: Optional[str]) -> Optional[datetime]:
+def to_local_naive(dt: datetime) -> datetime:
+    """Convierte un datetime con tz a la TZ local y lo deja naive (sin tzinfo).
+       Si ya es naive, se asume que está en hora local."""
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(LOCAL_TZ).replace(tzinfo=None)
+
+def parse_local_dt_str(s: Optional[str]) -> Optional[str]:
+    """
+    Devuelve 'YYYY-MM-DD HH:MM:SS' en TIME_ZONE (sin offset).
+    Acepta ISO con o sin zona. Si solo hay fecha, asume 00:00:00.
+    """
     if not s:
         return None
-    # ISO 8601; si viene naive, interpreta en TZ local y convierte a UTC
-    if "Z" in s or "+" in s:
-        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-    else:
-        dt = datetime.fromisoformat(s)
-        if dt.tzinfo is None:
-            dt = MX_TZ.localize(dt)
-    return dt.astimezone(pytz.UTC)
+    txt = s.strip()
+    if txt.endswith("Z"):
+        txt = txt[:-1] + "+00:00"
+    dt: Optional[datetime] = None
+    try:
+        dt = datetime.fromisoformat(txt)
+    except Exception:
+        try:
+            d = date.fromisoformat(txt)
+            dt = datetime(d.year, d.month, d.day, 0, 0, 0)
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Invalid datetime format: {s}")
+    dt_local_naive = to_local_naive(dt)
+    return dt_local_naive.strftime("%Y-%m-%d %H:%M:%S")
 
-def to_date_utc_floor(dts: Optional[datetime]) -> Optional[date]:
-    return dts.date() if dts else None
+def format_local_offset(dt_value: Any) -> Optional[str]:
+    """
+    Formatea a 'YYYY-MM-DD HH:MM:SS.mmm -0600' en TIME_ZONE.
+    - Acepta datetime (con o sin tz) o string ISO.
+    - Si es None, retorna None.
+    """
+    if dt_value is None:
+        return None
+
+    # Convertir a datetime
+    if isinstance(dt_value, datetime):
+        dt = dt_value
+    elif isinstance(dt_value, str):
+        txt = dt_value.strip()
+        if txt.endswith("Z"):
+            txt = txt[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(txt)
+        except Exception:
+            try:
+                dt = datetime.strptime(txt, "%Y-%m-%d %H:%M:%S.%f")
+            except Exception:
+                try:
+                    dt = datetime.strptime(txt, "%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    return dt_value
+    else:
+        return str(dt_value)
+
+    # A TZ local con offset y milisegundos
+    if dt.tzinfo is None:
+        dt_local = LOCAL_TZ.localize(dt)
+    else:
+        dt_local = dt.astimezone(LOCAL_TZ)
+
+    msec = dt_local.microsecond // 1000
+    return f"{dt_local.strftime('%Y-%m-%d %H:%M:%S')}.{msec:03d} {dt_local.strftime('%z')}"
 
 class PageMeta(BaseModel):
     limit: int = 100
@@ -115,8 +169,8 @@ class PageMeta(BaseModel):
 
     @validator("limit")
     def v_limit(cls, v):
-        if v < 1 or v > 1000:
-            raise ValueError("limit must be 1..1000")
+        if v < 1 or v > 10000:  # ⬆ límite máx 10k
+            raise ValueError("limit must be 1..10000")
         return v
 
     @validator("offset")
@@ -126,15 +180,21 @@ class PageMeta(BaseModel):
         return v
 
 def pagination_clause(offset: int, limit: int):
-    """
-    Devuelve el fragmento SQL de paginación y el orden correcto de parámetros.
-    - offset == 0 -> solo FETCH (evita edge-cases y asegura row-count positivo)
-    - offset > 0  -> OFFSET ... FETCH ...
-    """
+    """Paginación robusta (evita edge-case con offset=0)."""
     if offset == 0:
         return "FETCH NEXT ? ROWS ONLY", [limit]
     else:
         return "OFFSET ? ROWS FETCH NEXT ? ROWS ONLY", [offset, limit]
+
+def postprocess_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Formatea campos de tiempo a 'YYYY-MM-DD HH:MM:SS.mmm -0600'."""
+    out = {}
+    for k, v in row.items():
+        if k in TIMESTAMP_FIELDS and v is not None:
+            out[k] = format_local_offset(v)
+        else:
+            out[k] = v
+    return out
 
 # =========================
 # OpenAPI personalizado (bearer global)
@@ -148,14 +208,12 @@ def custom_openapi():
         description=app.description,
         routes=app.routes,
     )
-    # Security scheme
     openapi_schema.setdefault("components", {}).setdefault("securitySchemes", {})
     openapi_schema["components"]["securitySchemes"]["bearerAuth"] = {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT",  # o "opaque" si usas tokens opacos
+        "bearerFormat": "JWT",
     }
-    # Seguridad global: todas las rutas requieren bearer (las públicas se pueden excluir manualmente)
     openapi_schema["security"] = [{"bearerAuth": []}]
     app.openapi_schema = openapi_schema
     return app.openapi_schema
@@ -164,7 +222,6 @@ app.openapi = custom_openapi
 
 @app.get("/openapi.yaml", response_class=PlainTextResponse, include_in_schema=False)
 def openapi_yaml():
-    """Descarga el OpenAPI en YAML."""
     return yaml.safe_dump(app.openapi(), sort_keys=False, allow_unicode=True)
 
 # =========================
@@ -184,20 +241,22 @@ def health():
 @app.get("/telematics_real_time", tags=["telematics"])
 def telematics_real_time(
     token: str = Depends(require_token),
-    device_id: Optional[str] = Query(None, description="Exact device_id"),
-    gps_epoch_start: Optional[str] = Query(None, description="ISO-8601 start, e.g. 2025-09-01T00:00:00"),
-    gps_epoch_end: Optional[str] = Query(None, description="ISO-8601 end (inclusive)"),
-    limit: int = Query(100, ge=1, le=1000),
+    device_id: str = Query(..., description="Exact device_id (requerido)"),
+    gps_epoch_start: str = Query(..., description="Inicio local, ej. 2025-09-25T00:00:00"),
+    gps_epoch_end: str = Query(..., description="Fin local (inclusive)"),
+    limit: int = Query(100, ge=1, le=10000),   # ⬆ 10k
     offset: int = Query(0, ge=0),
-    columns: Optional[str] = Query(None, description="Comma-separated projection"),
+    columns: Optional[str] = Query(None, description="Proyección separada por comas"),
 ):
-    if not device_id and not (gps_epoch_start or gps_epoch_end):
-        raise HTTPException(status_code=400, detail="Provide device_id or gps_epoch range")
-
-    dt_start = parse_dt(gps_epoch_start)
-    dt_end = parse_dt(gps_epoch_end)
-    if dt_start and dt_end and dt_start > dt_end:
+    # Parseo a string local sin tz
+    start_ts_local = parse_local_dt_str(gps_epoch_start)  # 'YYYY-MM-DD HH:MM:SS'
+    end_ts_local   = parse_local_dt_str(gps_epoch_end)    # 'YYYY-MM-DD HH:MM:SS'
+    if start_ts_local > end_ts_local:
         raise HTTPException(status_code=400, detail="gps_epoch_start must be <= gps_epoch_end")
+
+    # Días locales para pruning
+    day_start_local = start_ts_local.split(" ")[0]
+    day_end_local   = end_ts_local.split(" ")[0]
 
     base_cols = [
         "report_type","tenant","provider","model","firmware","device_id",
@@ -209,30 +268,15 @@ def telematics_real_time(
     proj_cols = [c.strip() for c in (columns.split(",") if columns else base_cols) if c.strip()]
     sel = ", ".join(proj_cols)
 
-    where = []
-    params: List[Any] = []
+    # Casts para tipos correctos
+    where = [
+        "device_id = ?",
+        f"gps_epoch BETWEEN with_timezone(CAST(? AS timestamp), '{TIME_ZONE}') AND with_timezone(CAST(? AS timestamp), '{TIME_ZONE}')",
+        "received_day BETWEEN CAST(? AS date) AND CAST(? AS date)",
+    ]
+    params: List[Any] = [device_id, start_ts_local, end_ts_local, day_start_local, day_end_local]
 
-    if device_id:
-        where.append("device_id = ?")
-        params.append(device_id)
-
-    if dt_start and dt_end:
-        where.append("gps_epoch BETWEEN ? AND ?")
-        params.extend([dt_start.isoformat(), dt_end.isoformat()])
-        where.append("received_day BETWEEN DATE(?) AND DATE(?)")
-        params.extend([dt_start.isoformat(), dt_end.isoformat()])
-    elif dt_start:
-        where.append("gps_epoch >= ?")
-        params.append(dt_start.isoformat())
-        where.append("received_day >= DATE(?)")
-        params.append(dt_start.isoformat())
-    elif dt_end:
-        where.append("gps_epoch <= ?")
-        params.append(dt_end.isoformat())
-        where.append("received_day <= DATE(?)")
-        params.append(dt_end.isoformat())
-
-    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    where_sql = "WHERE " + " AND ".join(where)
 
     count_sql = f"SELECT count(*) FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.telematics_real_time {where_sql}"
 
@@ -243,7 +287,7 @@ def telematics_real_time(
         SELECT {sel}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.telematics_real_time
         {where_sql}
-        ORDER BY device_id, gps_epoch
+        ORDER BY device_id, gps_epoch DESC
         {pag_sql}
     """
 
@@ -254,12 +298,15 @@ def telematics_real_time(
         cur.execute(count_sql, params)
         total = cur.fetchone()[0]
 
-        cur.execute(data_sql, [*params, *pag_params])  # orden correcto de params
+        cur.execute(data_sql, [*params, *pag_params])
         rows = cur.fetchall()
-        result = [dict(zip(proj_cols, r)) for r in rows]
+        raw = [dict(zip(proj_cols, r)) for r in rows]
+        # Formateo final de timestamps como en la BD: "YYYY-MM-DD HH:MM:SS.mmm -0600"
+        result = [postprocess_row(item) for item in raw]
         return {"items": result, "page": {"limit": limit, "offset": offset, "total": total}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"trino query error: {e}")
+
 
 @app.get("/risk_score_daily", tags=["risk"])
 def risk_score_daily(
@@ -267,7 +314,7 @@ def risk_score_daily(
     device_id: Optional[str] = Query(None),
     report_date_start: Optional[date] = Query(None),
     report_date_end: Optional[date] = Query(None),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(100, ge=1, le=10000),   # ⬆ 10k
     offset: int = Query(0, ge=0),
     columns: Optional[str] = Query(None),
 ):
@@ -288,27 +335,26 @@ def risk_score_daily(
         where.append("device_id = ?")
         params.append(device_id)
     if report_date_start and report_date_end:
-        where.append("report_date BETWEEN ? AND ?")
+        where.append("report_date BETWEEN CAST(? AS date) AND CAST(? AS date)")
         params.extend([report_date_start.isoformat(), report_date_end.isoformat()])
     elif report_date_start:
-        where.append("report_date >= ?")
+        where.append("report_date >= CAST(? AS date)")
         params.append(report_date_start.isoformat())
     elif report_date_end:
-        where.append("report_date <= ?")
+        where.append("report_date <= CAST(? AS date)")
         params.append(report_date_end.isoformat())
 
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
     count_sql = f"SELECT count(*) FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.risk_score_daily {where_sql}"
 
-    # Paginación robusta
     pag_sql, pag_params = pagination_clause(offset, limit)
 
     data_sql = f"""
         SELECT {sel}
         FROM {TRINO_CATALOG}.{TRINO_SCHEMA}.risk_score_daily
         {where_sql}
-        ORDER BY device_id, report_date
+        ORDER BY device_id, report_date DESC
         {pag_sql}
     """
 
@@ -319,9 +365,10 @@ def risk_score_daily(
         cur.execute(count_sql, params)
         total = cur.fetchone()[0]
 
-        cur.execute(data_sql, [*params, *pag_params])  # orden correcto de params
+        cur.execute(data_sql, [*params, *pag_params])
         rows = cur.fetchall()
-        result = [dict(zip(proj_cols, r)) for r in rows]
+        raw = [dict(zip(proj_cols, r)) for r in rows]
+        result = raw
         return {"items": result, "page": {"limit": limit, "offset": offset, "total": total}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"trino query error: {e}")

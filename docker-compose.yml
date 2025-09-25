@@ -263,12 +263,13 @@ services:
     environment:
       - TRINO_HOST=trino
       - TRINO_PORT=8080
-      - TRINO_USER=api
+      - TRINO_USER=analyst
       - TRINO_CATALOG=nessie
       - TRINO_SCHEMA=telematics
       - TIME_ZONE=America/Mexico_City
       - API_TOKENS=token1,token2,token3
       - API_WORKERS=2
+      - ALLOW_ORIGINS=http://localhost:9009,http://localhost:8080
     ports:
       - "9009:9009"
 
