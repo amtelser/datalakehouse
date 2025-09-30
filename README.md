@@ -117,7 +117,6 @@ curl -H "Authorization: Bearer xxxx" "http://172.25.27.244:9009/risk_score_daily
 ---
 
 ## 🛠️ Mantenimiento / Utilidades
-- `scripts/cleanup.sh`: ejemplo de limpieza / utilitario (ajustar antes de usar).
 - Particiones Iceberg: revisar en S3 o vía `DESCRIBE TABLE` en Trino.
 - Actualización de credenciales: externalizar en variables / `.env` (actualmente algunos valores están embebidos en `create.sql`).
 
@@ -171,17 +170,21 @@ docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f
 docker exec -it jobmanager bash -lc "bin/sql-client.sh -i /opt/sql/create.sql -f /opt/sql/sink_risk_score_daily.sql"
 
 # Batch Cleanup
-docker exec -it datalakehouse-trino-1 bash -lc \
+docker exec -e TRINO_PASSWORD='' -i iothub-stack-trino-1 bash -lc \
 'trino \
   --server https://localhost:8080 \
   --insecure \
   --user cleanup \
+  --password \
   --catalog nessie \
   --schema telematics \
   -f /opt/sql/cleanup.sql'
 
 # Trino CLI
-docker exec -it trino trino
+docker exec -it trino
+# Trino Restart (usuarios nuevos)
+docker compose restart trino
+
 ```
 
 ---
@@ -193,6 +196,50 @@ docker exec -it trino trino
 - API: disponible para consultas básicas
 
 ## ✅ Cron
+### batch_jobs
 - chmod +x scripts/batch_jobs.sh
 - crontab -e
 - agregar para que se ejecute a las 1am (servidor en utc): 0 7 * * * /opt/iothub-stack/scripts/batch_jobs.sh >> /var/log/batch_jobs.log 2>&1
+
+### trino-watchdog
+- chmod +x scripts/trino-watchdog.sh
+/etc/systemd/system/trino-watchdog.service
+```bash
+[Unit]
+Description=Watchdog de memoria para reiniciar Trino
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/opt/iothub-stack/scripts/trino-watchdog.sh
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now trino-watchdog.service
+```
+
+## ✅ LOGS
+vi /var/log/batch_jobs.log
+vi /var/log/trino-watchdog.log
+
+## ✅ MIGRATION
+docker compose exec spark /opt/spark/bin/spark-submit \
+  --jars /opt/jars/iceberg-spark-runtime-3.5_2.13-1.9.2.jar,/opt/jars/iceberg-aws-bundle-1.9.2.jar,/opt/jars/postgresql-42.7.3.jar \
+  /opt/jobs/backfill_telematics.py \
+  --pg-url "jdbc:postgresql://172.25.0.10:5432/telematics_db" \
+  --pg-user datalakehouse \
+  --pg-pass  \
+  --pg-table "public.telematics_real_time" \
+  --start-ts "2025-01-01 00:00:00" \
+  --end-ts   "2025-09-23 15:10:00" \
+  --report-types "STATUS,ALERT" \
+  --device-ids "1520203774" \
+  --nessie-uri "http://nessie:19120/api/v1" \
+  --nessie-ref "main" \
+  --warehouse "s3://iothub-telematics-data-stg/warehouse" \
+  --s3-endpoint "https://s3.us-west-2.amazonaws.com"
