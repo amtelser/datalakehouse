@@ -3,7 +3,8 @@
     { "user": "ANONYMOUS", "catalog": ".*",   "allow": "none" },
     { "user": "admin",     "catalog": ".*",   "allow": "all"  },
     { "user": "analyst",   "catalog": "nessie","allow": "read-only" },
-    { "user": "cleanup",   "catalog": "nessie","allow": "all" }
+    { "user": "cleanup",   "catalog": "nessie","allow": "all" },
+    { "user": "hardware",  "catalog": "nessie","allow": "read-only" }
   ],
   "schemas": [
     { "user": "admin", "catalog": ".*", "schema": ".*", "owner": true }
@@ -29,6 +30,13 @@
       "schema": "telematics",
       "table": ".*",
       "privileges": ["SELECT","INSERT","DELETE","UPDATE"]
+    },
+    {
+      "user": "hardware",
+      "catalog": "nessie",
+      "schema": "telematics",
+      "table": ".*",
+      "privileges": ["SELECT"]
     }
   ]
 }
