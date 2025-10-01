@@ -211,6 +211,8 @@ After=multi-user.target
 
 [Service]
 Type=simple
+WorkingDirectory=/opt/iothub-stack
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 ExecStart=/opt/iothub-stack/scripts/trino-watchdog.sh
 Restart=always
 RestartSec=30
@@ -221,6 +223,8 @@ WantedBy=multi-user.target
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now trino-watchdog.service
+sudo systemctl restart trino-watchdog.service
+sudo systemctl status trino-watchdog.service
 ```
 
 ## ✅ LOGS
