@@ -209,8 +209,6 @@ services:
   taskmanager:
     image: flink:1.20.2-scala_2.12
     command: taskmanager
-    deploy:
-      replicas: 2
     environment:
       - |
         FLINK_PROPERTIES=
@@ -272,6 +270,23 @@ services:
       - ALLOW_ORIGINS=http://localhost:9009,http://localhost:8080
     ports:
       - "9009:9009"
+
+  spark:
+    image: apache/spark:3.5.7-scala2.12-java17-python3-r-ubuntu
+    container_name: spark
+    user: root
+    command: ["bash","-lc","sleep infinity"] 
+    environment:
+      - SPARK_LOCAL_IP=spark
+      - TZ=America/Mexico_City
+      - AWS_REGION=us-west-2
+      - AWS_DEFAULT_REGION=us-west-2
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+    volumes:
+      - ./runtime/lib:/opt/jars:ro
+      - ./config/spark:/opt/jobs:ro
+    depends_on: [nessie]
 
 volumes:
   pg-data:
