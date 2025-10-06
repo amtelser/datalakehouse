@@ -58,7 +58,6 @@ def main():
     )
 
     where = (
-        f"gps_fixed IS TRUE "
         f"AND report_type IN ({sql_str_list(report_types)}) "
         f"AND device_id IN ({sql_str_list(device_ids)}) "
         f"AND received_epoch >= TIMESTAMP '{args.start_ts}' "

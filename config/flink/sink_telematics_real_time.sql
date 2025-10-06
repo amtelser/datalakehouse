@@ -40,5 +40,4 @@ SELECT
   CAST(MOD(ABS(HASH_CODE(device_id)), 32) AS INT) AS device_id_bucket,
   CAST(TO_TIMESTAMP_LTZ(CAST(received_epoch AS BIGINT) * 1000, 3) AS DATE) AS received_day
 FROM kafka_telematics_real_time
-WHERE report_type IN ('STATUS','ALERT')
-  AND gps_fixed = TRUE;
+WHERE report_type IN ('STATUS','ALERT');
