@@ -232,7 +232,15 @@ vi /var/log/batch_jobs.log
 vi /var/log/trino-watchdog.log
 
 ## ✅ MIGRATION
+```bash
 docker compose exec spark /opt/spark/bin/spark-submit \
+  --conf spark.driver.memory=4g \
+  --conf spark.executor.memory=4g \
+  --conf spark.executor.instances=1 \
+  --conf spark.sql.shuffle.partitions=4 \
+  --conf spark.memory.offHeap.enabled=false \
+  --conf spark.driver.extraJavaOptions=-XX:+UseG1GC \
+  --conf spark.executor.extraJavaOptions=-XX:+UseG1GC \
   --jars /opt/jars/iceberg-spark-runtime-3.5_2.13-1.9.2.jar,/opt/jars/iceberg-aws-bundle-1.9.2.jar,/opt/jars/postgresql-42.7.3.jar \
   /opt/jobs/backfill_telematics.py \
   --pg-url "jdbc:postgresql://172.25.0.10:5432/telematics_db" \
@@ -240,10 +248,18 @@ docker compose exec spark /opt/spark/bin/spark-submit \
   --pg-pass  \
   --pg-table "public.telematics_real_time" \
   --start-ts "2025-01-01 00:00:00" \
-  --end-ts   "2025-09-23 15:10:00" \
+  --end-ts   "2025-10-06 11:42:46" \
   --report-types "STATUS,ALERT" \
-  --device-ids "1520203774" \
+  --device-file "/opt/jobs/devices_sorted_by_bucket.txt" \
+  --line-start 1 --line-end 23 \
   --nessie-uri "http://nessie:19120/api/v1" \
   --nessie-ref "main" \
   --warehouse "s3://iothub-telematics-data-stg/warehouse" \
   --s3-endpoint "https://s3.us-west-2.amazonaws.com"
+```
+---
+### Cuando ya este todo migrado se tiene que aplicar por día hasta el 2025-10-06:
+```bash
+ALTER TABLE nessie.telematics.telematics_real_time          EXECUTE optimize(file_size_threshold => '256MB') WHERE received_day = DATE '2025-MM-DD';
+ANALYZE nessie.telematics.telematics_real_time;
+```
