@@ -232,10 +232,20 @@ vi /var/log/batch_jobs.log
 vi /var/log/trino-watchdog.log
 
 ## ✅ MIGRATION
+### Archivos a subir al servidor
+```bash
+scp -r /Users/ar-0980/Library/CloudStorage/OneDrive-EncontrackS.A.deC.V/Documentos/Encontrack/proyectos/datalakehouse/config/spark ubuntu@172.25.27.244:/opt/iothub-stack/config/
+scp -r /Users/ar-0980/Library/CloudStorage/OneDrive-EncontrackS.A.deC.V/Documentos/Encontrack/proyectos/datalakehouse/runtime/lib/iceberg-spark-runtime-3.5_2.13-1.9.2.jar ubuntu@172.25.27.244:/opt/iothub-stack/runtime/lib/
+### agregar a docker-compose.yml el service de spark
+### subir servicio de spark
+docker compose up -d spark
+```
+---
+## EJECUCIONES
 ```bash
 docker compose exec spark /opt/spark/bin/spark-submit \
-  --conf spark.driver.memory=4g \
-  --conf spark.executor.memory=4g \
+  --conf spark.driver.memory=6g \
+  --conf spark.executor.memory=6g \
   --conf spark.executor.instances=1 \
   --conf spark.sql.shuffle.partitions=4 \
   --conf spark.memory.offHeap.enabled=false \
@@ -243,7 +253,7 @@ docker compose exec spark /opt/spark/bin/spark-submit \
   --conf spark.executor.extraJavaOptions=-XX:+UseG1GC \
   --jars /opt/jars/iceberg-spark-runtime-3.5_2.13-1.9.2.jar,/opt/jars/iceberg-aws-bundle-1.9.2.jar,/opt/jars/postgresql-42.7.3.jar \
   /opt/jobs/backfill_telematics.py \
-  --pg-url "jdbc:postgresql://172.25.0.10:5432/telematics_db" \
+  --pg-url "jdbc:postgresql://172.25.11.15:5432/telematics_db" \
   --pg-user datalakehouse \
   --pg-pass  \
   --pg-table "public.telematics_real_time" \
@@ -251,15 +261,18 @@ docker compose exec spark /opt/spark/bin/spark-submit \
   --end-ts   "2025-10-06 11:42:46" \
   --report-types "STATUS,ALERT" \
   --device-file "/opt/jobs/devices_sorted_by_bucket.txt" \
-  --line-start 1 --line-end 23 \
+  --line-start 3101 --line-end 4500 \
   --nessie-uri "http://nessie:19120/api/v1" \
   --nessie-ref "main" \
   --warehouse "s3://iothub-telematics-data-stg/warehouse" \
-  --s3-endpoint "https://s3.us-west-2.amazonaws.com"
+  --s3-endpoint "https://s3.us-west-2.amazonaws.com" \
+  >> config/spark/backfill_telematics.log 2>&1
+
+tail -f config/spark/backfill_telematics.log | grep "Append OK"
 ```
 ---
 ### Cuando ya este todo migrado se tiene que aplicar por día hasta el 2025-10-06:
 ```bash
-ALTER TABLE nessie.telematics.telematics_real_time          EXECUTE optimize(file_size_threshold => '256MB') WHERE received_day = DATE '2025-MM-DD';
+ALTER TABLE nessie.telematics.telematics_real_time EXECUTE optimize(file_size_threshold => '256MB') WHERE received_day = DATE '2025-MM-DD';
 ANALYZE nessie.telematics.telematics_real_time;
 ```
