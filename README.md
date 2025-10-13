@@ -243,7 +243,7 @@ docker compose up -d spark
 ---
 ## EJECUCIONES
 ```bash
-docker compose exec spark /opt/spark/bin/spark-submit \
+nohup docker compose exec spark /opt/spark/bin/spark-submit \
   --conf spark.driver.memory=6g \
   --conf spark.executor.memory=6g \
   --conf spark.executor.instances=1 \
@@ -261,18 +261,25 @@ docker compose exec spark /opt/spark/bin/spark-submit \
   --end-ts   "2025-10-06 11:42:46" \
   --report-types "STATUS,ALERT" \
   --device-file "/opt/jobs/devices_sorted_by_bucket.txt" \
-  --line-start 3101 --line-end 4500 \
+  --line-start 7483 --line-end 30452 \
   --nessie-uri "http://nessie:19120/api/v1" \
   --nessie-ref "main" \
   --warehouse "s3://iothub-telematics-data-stg/warehouse" \
-  --s3-endpoint "https://s3.us-west-2.amazonaws.com" \
-  >> config/spark/backfill_telematics.log 2>&1
+  --s3-endpoint "https://s3.us-west-1.amazonaws.com" \
+  >> config/spark/backfill_telematics.log 2>&1 &
 
 tail -f config/spark/backfill_telematics.log | grep "Append OK"
 ```
 ---
-### Cuando ya este todo migrado se tiene que aplicar por día hasta el 2025-10-06:
+### Cuando ya este todo migrado se tiene que aplicar:
 ```bash
-ALTER TABLE nessie.telematics.telematics_real_time EXECUTE optimize(file_size_threshold => '256MB') WHERE received_day = DATE '2025-MM-DD';
-ANALYZE nessie.telematics.telematics_real_time;
+docker exec -e TRINO_PASSWORD='cleanup2025' -i iothub-stack-trino-1 bash -lc \
+'trino \
+  --server https://localhost:8080 \
+  --insecure \
+  --user cleanup \
+  --password \
+  --catalog nessie \
+  --schema telematics \
+  -f /opt/sql/cleanup_migration.sql'
 ```
