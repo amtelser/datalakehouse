@@ -15,9 +15,11 @@ WITH base AS (
     device_id,
     CAST(CAST(gps_epoch AS TIMESTAMP(3)) AS DATE) AS report_date_local,
     CAST(speed_kmh AS DOUBLE) AS speed_kmh,
-    EXTRACT(HOUR FROM CAST(gps_epoch AS TIMESTAMP(3))) AS gps_hour_local
+    EXTRACT(HOUR FROM CAST(gps_epoch AS TIMESTAMP(3) WITH LOCAL TIME ZONE)) AS gps_hour_local
   FROM telematics.telematics_real_time
   WHERE CAST(CAST(gps_epoch AS TIMESTAMP(3)) AS DATE) = CURRENT_DATE - INTERVAL '1' DAY
+  AND device_id in ('1440086780')
+  AND received_day >  CURRENT_DATE - INTERVAL '3' DAY
 ),
 agg AS (
   SELECT
